@@ -1,5 +1,5 @@
 # This file contains helper functions for describing arm waves from raw coordinates and start/end
-# tables. \\\Test add for git///
+# tables. \\\Test add for git/// ***but here's another***
 
 norm_vec <- function(x) {
 # calculates length of a vector
