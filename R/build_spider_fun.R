@@ -1,5 +1,5 @@
 # This file contains helper functions for describing arm waves from raw coordinates and start/end
-# tables. \\\Test add for git/// ***but here's another***
+# tables.
 
 norm_vec <- function(x) {
 # calculates length of a vector
@@ -153,9 +153,27 @@ trial.data <- trial.data[,c(1,2,3,40,4:39,41:76)] # gets the fps column to the f
 return(trial.data)
 } #4: takes all rows from trial.data and adds female view coordinates.
 
-visual_angle <- function(coxa.start.2D, claw.start.2D, coxa.end.2D, claw.end.2D){
+visual_angle <- function(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r, eye.start, eye.end){
+  # script takes xyz coords of each point (3 length vector). Then does a r projection where, in this rotated orientation,
+  # e.g. pt3_rX AKA coxa.start.r[1] becomes the depth coordinate for scaling, pt3_rY becomes x, and pt3_rZ becomes y.
   
-} #5: TO-DO: calculate visual angle moved by left and right leg
+  coxa.start.proj_x <- coxa.start.r[2] / (coxa.start.r[1] - eye.start)
+  coxa.start.proj_y <- coxa.start.r[3] / (coxa.start.r[1] - eye.start)
+  coxa.end.proj_x <- coxa.end.r[2] / (coxa.end.r[1] - eye.end)
+  coxa.end.proj_y <- coxa.end.r[3] / (coxa.end.r[1] - eye.end)
+  
+  claw.start.proj_x <- claw.start.r[2] / (claw.start.r[1] - eye.start)
+  claw.start.proj_y <- claw.start.r[3] / (claw.start.r[1] - eye.start)
+  claw.end.proj_x <- claw.end.r[2] / (claw.end.r[1] - eye.end)
+  claw.end.proj_y <- claw.end.r[3] / (claw.end.r[1] - eye.end)
+  
+  claw.start.proj <- c(claw.start.proj_x, claw.start.proj_y)
+  claw.end.proj <- c(claw.end.proj_x, claw.end.proj_y)
+  
+  clawmove <- claw.end.proj - claw.start.proj
+  angle_moved <- rad2deg(atan(norm_vec(clawmove))) # the "canvas" is 1 unit (mm) away from the eye, thus angle moved is just inverse tangent of distance moved
+return(angle_moved)
+} #5: calculates visual angle moved by left and right leg
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------
   
@@ -191,6 +209,7 @@ build.waves <- function(lefts, rights) {
     duration = numeric(n.waves),
     amplitude.male = numeric(n.waves),
     velocity.male = numeric(n.waves),
+    visual.angle = numeric(n.waves),
     stringsAsFactors = FALSE
   )
 
@@ -216,11 +235,24 @@ build.waves <- function(lefts, rights) {
       duration <- (lefts$frame[j + 1] - lefts$frame[j]) / lefts$fps[j] #duration in seconds
       amplitude <- wave_angle.abs(coxa.start, claw.start, coxa.end, claw.end)
       velocity <- sqrt((amplitude/duration)^2)
-      # angle.female <- wave_angle.2D(coxa.start, claw.start, coxa.end, claw.end)
+      
+      coxa.start.r <-
+        c(lefts$pt3_rX[j], lefts$pt3_rY[j], lefts$pt3_rZ[j])
+      coxa.end.r <-
+        c(lefts$pt3_rX[j + 1], lefts$pt3_rY[j + 1], lefts$pt3_rZ[j + 1])
+      claw.start.r <-
+        c(lefts$pt6_rX[j], lefts$pt6_rY[j], lefts$pt6_rZ[j])
+      claw.end.r <-
+        c(lefts$pt6_rX[j + 1], lefts$pt6_rY[j + 1], lefts$pt6_rZ[j + 1])
+      eye.start <- lefts$pt11_rX[j]
+      eye.end <- lefts$pt11_rX[j+1]
+      
+      angle.female <- visual_angle(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r, eye.start, eye.end)
       
       waves$duration[i] <- duration
       waves$amplitude.male[i] <- amplitude
-      waves$velocity.male[i] <- velocity 
+      waves$velocity.male[i] <- velocity
+      waves$visual.angle[i] <- angle.female
       
       i <- i + 1
       j <- j + 2
