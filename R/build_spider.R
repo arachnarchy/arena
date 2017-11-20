@@ -108,7 +108,6 @@ trial.data <- create_female_view(trial.data)
 trial.data <- split_endStart(trial.data)
 
 # split waves into separate data frames for left and right for ease of use
-
 waves.sides <- split.sides(trial.data)
 lefts <- data.frame(waves.sides[1])
 rights <- data.frame(waves.sides[2])

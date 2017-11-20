@@ -52,6 +52,23 @@ split_endStart <- function(trial.data) {
   return(trial.data)
 }
 
+split.sides <- function(trial.data) {
+  # split into left and right leg waves for convenience later
+  lefts <- filter(trial.data, left != "0")
+  lefts <- lefts[, c(1:2, 4:ncol(lefts))] # remove right column
+  colnames(lefts)[2] <- "event"
+  lefts <-
+    unique(lefts) # removes duplicated rows introduced when other leg had an end/start frame
+  
+  rights <- filter(trial.data, right != "0")
+  rights <- rights[, c(1, 3:ncol(rights))] # remove right column
+  colnames(rights)[2] <- "event"
+  rights <- unique(rights)
+  
+  waves.sides <- list(lefts, rights)
+  return(waves.sides)
+}
+
 wave_angle.abs <- function(coxa.start, claw.start, coxa.end, claw.end) {
   # calculates change in "absolute" arm angle (angle between coxa-claw vector and horizontal plane) during a wave. 
   # Takes xyz coordinates of two point pairs.
@@ -170,30 +187,15 @@ visual_angle <- function(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r, eye
   claw.start.proj <- c(claw.start.proj_x, claw.start.proj_y)
   claw.end.proj <- c(claw.end.proj_x, claw.end.proj_y)
   
-  clawmove <- claw.end.proj - claw.start.proj
-  angle_moved <- rad2deg(atan(norm_vec(clawmove))) # the "canvas" is 1 unit (mm) away from the eye, thus angle moved is just inverse tangent of distance moved
+  clawmove <- claw.end.proj - claw.start.proj # 2D vector of claw movement
+  
+  # the "canvas" is 1 unit (mm) away from the eye, thus angle moved is just inverse tangent of distance moved:
+  angle_moved <- rad2deg(atan(norm_vec(clawmove)))
+  
 return(angle_moved)
 } #5: calculates visual angle moved by left and right leg
 
------------------------------------------------------------------------------------------------------------------------------------------------------
-  
-split.sides <- function(trial.data){
-  # split into left and right leg waves for convenience later
-  lefts <- filter(trial.data, left != "0")
-  lefts <- lefts[,c(1:2, 4:ncol(lefts))] # remove right column
-  colnames(lefts)[2] <- "event"
-  lefts <- unique(lefts) # removes duplicated rows introduced when other leg had an end/start frame
-  
-  rights <- filter(trial.data, right !="0")
-  rights <- rights[,c(1, 3:ncol(rights))] # remove right column
-  colnames(rights)[2] <- "event"
-  rights <- unique(rights)
-  
-  waves.sides <- list(lefts, rights)
-  return(waves.sides)
-}
-
-# reshape left/right start/end data into a frame that has one wave per row
+# reshape left/right start/end data into a frame that has one wave per row --------
 
 build.waves <- function(lefts, rights) {
   n.waves.left <- nrow(lefts) / 2
@@ -212,8 +214,8 @@ build.waves <- function(lefts, rights) {
     visual.angle = numeric(n.waves),
     stringsAsFactors = FALSE
   )
-
-# populate "waves" dataframe with data from left leg waves, calculate amplitude and velocity in relation to male
+  
+  # populate "waves" dataframe with data from left leg waves, calculate amplitude and velocity in relation to male
   i <- 1
   j <- 1
   while (i <= n.waves.left) {
@@ -221,7 +223,7 @@ build.waves <- function(lefts, rights) {
       waves$leg[i] <- "left"
       waves$start[i] <- lefts$frame[j]
       waves$end[i] <- lefts$frame[j + 1]
-
+      
       # coordinates of relevant joints
       coxa.start <-
         c(lefts$pt3_X[j], lefts$pt3_Y[j], lefts$pt3_Z[j])
@@ -236,6 +238,7 @@ build.waves <- function(lefts, rights) {
       amplitude <- wave_angle.abs(coxa.start, claw.start, coxa.end, claw.end)
       velocity <- sqrt((amplitude/duration)^2)
       
+      # joint coordinates in rotated reference frame (for 2D projection)
       coxa.start.r <-
         c(lefts$pt3_rX[j], lefts$pt3_rY[j], lefts$pt3_rZ[j])
       coxa.end.r <-
@@ -281,10 +284,25 @@ build.waves <- function(lefts, rights) {
       amplitude <- wave_angle.abs(coxa.start, claw.start, coxa.end, claw.end)
       velocity <- sqrt((amplitude/duration)^2)
       
+      # joint coordinates in rotated reference frame (for 2D projection)
+      coxa.start.r <-
+        c(rights$pt7_rX[j], rights$pt7_rY[j], rights$pt7_rZ[j])
+      coxa.end.r <-
+        c(rights$pt7_rX[j + 1], rights$pt7_rY[j + 1], rights$pt7_rZ[j + 1])
+      claw.start.r <-
+        c(rights$pt10_rX[j], rights$pt10_rY[j], rights$pt10_rZ[j])
+      claw.end.r <-
+        c(rights$pt10_rX[j + 1], rights$pt10_rY[j + 1], rights$pt10_rZ[j + 1])
+      eye.start <- rights$pt11_rX[j]
+      eye.end <- rights$pt11_rX[j+1]
+      
+      angle.female <- visual_angle(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r, eye.start, eye.end)
+      
       waves$duration[i] <- duration
       waves$amplitude.male[i] <- amplitude
       waves$velocity.male[i] <- velocity 
-
+      waves$visual.angle[i] <- angle.female
+      
       i <- i + 1
       j <- j + 2
     }
