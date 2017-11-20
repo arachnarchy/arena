@@ -18,15 +18,16 @@ colnames(points) <- c("X", "Y", "Z")
 
 ## plotting ----
 
-# set up arena circle ----
-n <- 300 
-theta <- seq(0, 2*pi, len=n) 
-circle_x <- cos(theta) 
-circle_y <- sin(theta) 
-circle_z <- rep(0, n) 
-
 # plot 12 points before any rotations -----
 plot.arena <- function(points) {
+  
+  # set up arena circle ----
+  n <- 300 
+  theta <- seq(0, 2*pi, len=n) 
+  circle_x <- cos(theta) 
+  circle_y <- sin(theta) 
+  circle_z <- rep(0, n) 
+  
   open3d() # open rgl device
   plot3d(
     points,
