@@ -280,6 +280,7 @@ build.waves <- function(lefts, rights) {
       claw.end <-
         c(lefts$pt6_X[j + 1], lefts$pt6_Y[j + 1], lefts$pt6_Z[j + 1])
       
+      distance <- sqrt(((lefts$pt11_X[j] - lefts$pt1_X[j])^2) + ((lefts$pt11_Y[j] - lefts$pt1_Y[j])^2))
       duration <- (lefts$frame[j + 1] - lefts$frame[j]) / lefts$fps[j] #duration in seconds
       amplitude <- wave_angle.abs(coxa.start, claw.start, coxa.end, claw.end)
       velocity <- sqrt((amplitude/duration)^2)
@@ -299,6 +300,7 @@ build.waves <- function(lefts, rights) {
       angle.female <- visual_angle(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r)
       velocity.female <- sqrt((angle.female/duration)^2)
       
+      waves$distance[i] <- distance
       waves$duration[i] <- duration
       waves$amplitude.male[i] <- amplitude
       waves$velocity.male[i] <- velocity
@@ -328,6 +330,7 @@ build.waves <- function(lefts, rights) {
       claw.end <-
         c(rights$pt10_X[j + 1], rights$pt10_Y[j + 1], rights$pt10_Z[j + 1])
       
+      distance <- sqrt(((rights$pt11_X[j] - rights$pt1_X[j])^2) + ((rights$pt11_Y[j] - rights$pt1_Y[j])^2))
       duration <- (rights$frame[j + 1] - rights$frame[j]) / rights$fps[j] #duration in seconds
       amplitude <- wave_angle.abs(coxa.start, claw.start, coxa.end, claw.end)
       velocity <- sqrt((amplitude/duration)^2)
@@ -347,6 +350,7 @@ build.waves <- function(lefts, rights) {
       angle.female <- visual_angle(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r)
       velocity.female <- sqrt((angle.female/duration)^2)
       
+      waves$distance[i] <- distance
       waves$duration[i] <- duration
       waves$amplitude.male[i] <- amplitude
       waves$velocity.male[i] <- velocity 
