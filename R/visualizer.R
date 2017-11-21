@@ -1,3 +1,8 @@
+trial = "1866 1.5x"
+side = "left"
+start_frame = 2785
+end_frame = 2823
+
 visualize_frame <- function(trial, side, start_frame, end_frame){
 # reads a trial and plots 3D points as well as a 2D projection
 # create file paths ----
@@ -51,7 +56,7 @@ visualize_frame <- function(trial, side, start_frame, end_frame){
   }
   
   # add rotated points to trial.data -----
-  trial.data <- create_female_view(trial.data)
+  trial.data <- create_rotated_view(trial.data)
   
   # deal with "end/start" values by duplicating those rows ----
   trial.data <- split_endStart(trial.data)
@@ -86,9 +91,9 @@ visualize_frame <- function(trial, side, start_frame, end_frame){
   
   # 2D projection:
   proj_x <-
-    -(points[1:10, 2] / (points[1:10, 1] - points[11, 1])) # projected on canvas 1mm female eye (point 11)
+    -(points[1:10, 2] / (points[1:10, 1])) # projected on canvas 1mm female eye (point 11)
   proj_y <-
-    points[1:10, 3] / (points[1:10, 1] - points[11, 1])
+    points[1:10, 3] / (points[1:10, 1])
   
   plot(proj_x[1:10], proj_y[1:10], xlim = c(-1, 1), ylim = c(0, 2), pch = 16, cex = 0.5)
   
@@ -114,9 +119,9 @@ visualize_frame <- function(trial, side, start_frame, end_frame){
   
   # 2D projection:
   proj_x <-
-    -(points[1:10, 2] / (points[1:10, 1] - points[11, 1])) # projected on canvas 1mm female eye (point 11)
+    -(points[1:10, 2] / (points[1:10, 1])) # projected on canvas 1mm female eye (point 11)
   proj_y <-
-    points[1:10, 3] / (points[1:10, 1] - points[11, 1])
+    points[1:10, 3] / (points[1:10, 1])
   
   plot(proj_x[1:10], proj_y[1:10], xlim = c(-1, 1), ylim = c(0, 2), pch = 16, cex = 0.5)
   

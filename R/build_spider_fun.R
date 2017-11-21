@@ -140,6 +140,46 @@ female_azimuth <- function(points){
   return(camera)
 }    #2: calculates female "camera" angle vs world x-axis. Takes data from one frame as a [12,3] xyz array
 
+male_azimuth <- function(points){
+  # this function calculates male "camera" angle vs world x-axis. Takes data from one frame as a [12,3] xyz array
+  
+  # pt.1 <- c(points[1,1], points[1,2], 1)
+  # pt.2 <- c(points[2,1], points[2,2], 1)
+  # male <- pt.1 - pt.2
+  
+  male <- c(points[1,1], points[1,2], 1)
+  vertPlane <- c(0, 1, 0) # orthogonal vector to horizontal plane
+  
+  
+  # calculates "camera" angle vs world x-axis.
+  camera <-
+    asin(norm_vec(vertPlane * male) / norm_vec(male) * norm_vec(vertPlane))
+  
+  # determines quadrant of vector
+  if (male[1] > 0) {
+    if (male[2] > 0) {
+      q <- 1
+    } else {
+      q <- 4
+    }
+  } else if (male[2] > 0) {
+    q <- 2
+  } else{
+    q <- 3
+  }
+  
+  # corrects the angle depending on quadrant
+  if (q == 1) {
+    camera <- (2 * pi) - camera
+  } else if (q == 2) {
+    camera <- pi + camera
+  } else if (q == 3) {
+    camera <- pi - camera
+  }
+  
+  return(camera)
+}    #2: calculates male "camera" angle vs world x-axis. Takes data from one frame as a [12,3] xyz array
+
 zrotate <- function(point, angle) {
   # this function rotates an xyz point (or array of xyz points) counter-clockwise around the z-axis. 
   rotator <- matrix(
@@ -154,13 +194,13 @@ zrotate <- function(point, angle) {
   return(point_rot)
 }    #3: rotates an xyz point (or array of xyz points) counter-clockwise around the z-axis.
 
-create_female_view <-  function(trial.data){
+create_rotated_view <-  function(trial.data){
 rotated.frames <- matrix(nrow = nrow(trial.data), ncol = 36) # set up empty array to hold rotated rows
 
   for(i in 1:nrow(trial.data)){
     row.as.matrix <- xyz.matrix(trial.data[i,])
-    fem.angle <- female_azimuth(row.as.matrix)
-    rotated.points <- zrotate(row.as.matrix, fem.angle)
+    rotation_angle <- male_azimuth(row.as.matrix)
+    rotated.points <- zrotate(row.as.matrix, rotation_angle)
     rotated.frames[i,] <-  as.vector(t(rotated.points)) #turns 12x3 matrix of rotated points back into a row vector
   }
 
@@ -170,19 +210,24 @@ trial.data <- trial.data[,c(1,2,3,40,4:39,41:76)] # gets the fps column to the f
 return(trial.data)
 } #4: takes all rows from trial.data and adds female view coordinates.
 
-visual_angle <- function(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r, eye.start, eye.end){
-  # script takes xyz coords of each point (3 length vector). Then does a r projection where, in this rotated orientation,
+visual_angle <- function(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r){
+  # script takes xyz coords of each point (3 length vector). Then does a projection where, in this rotated orientation,
   # e.g. pt3_rX AKA coxa.start.r[1] becomes the depth coordinate for scaling, pt3_rY becomes x, and pt3_rZ becomes y.
+  # TO-DO: fix so correct angles are produced when male not in front of female.
   
-  coxa.start.proj_x <- coxa.start.r[2] / (coxa.start.r[1] - eye.start)
-  coxa.start.proj_y <- coxa.start.r[3] / (coxa.start.r[1] - eye.start)
-  coxa.end.proj_x <- coxa.end.r[2] / (coxa.end.r[1] - eye.end)
-  coxa.end.proj_y <- coxa.end.r[3] / (coxa.end.r[1] - eye.end)
+  # 2D y is distance from coxa(x,y,0) to coxa(x,y,z) DIVIDED BY distance from pt11(x,y,0) to coxa(x,y,0)
+  # 2D x is distance from coxa(x,y,0) to coxa(x,y,z) DIVIDED BY distance from pt11(x,y,0) to coxa(x,y,0)
   
-  claw.start.proj_x <- claw.start.r[2] / (claw.start.r[1] - eye.start)
-  claw.start.proj_y <- claw.start.r[3] / (claw.start.r[1] - eye.start)
-  claw.end.proj_x <- claw.end.r[2] / (claw.end.r[1] - eye.end)
-  claw.end.proj_y <- claw.end.r[3] / (claw.end.r[1] - eye.end)
+  # with female position as (0,0,0):
+  coxa.start.proj_x <- coxa.start.r[2] / coxa.start.r[1]
+  coxa.start.proj_y <- coxa.start.r[3] / coxa.start.r[1]
+  coxa.end.proj_x <- coxa.end.r[2] / coxa.end.r[1]
+  coxa.end.proj_y <- coxa.end.r[3] / coxa.end.r[1]
+  
+  claw.start.proj_x <- claw.start.r[2] / claw.start.r[1]
+  claw.start.proj_y <- claw.start.r[3] / claw.start.r[1]
+  claw.end.proj_x <- claw.end.r[2] / claw.end.r[1]
+  claw.end.proj_y <- claw.end.r[3] / claw.end.r[1]
   
   claw.start.proj <- c(claw.start.proj_x, claw.start.proj_y)
   claw.end.proj <- c(claw.end.proj_x, claw.end.proj_y)
@@ -251,7 +296,7 @@ build.waves <- function(lefts, rights) {
       eye.start <- lefts$pt11_rX[j]
       eye.end <- lefts$pt11_rX[j+1]
       
-      angle.female <- visual_angle(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r, eye.start, eye.end)
+      angle.female <- visual_angle(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r)
       velocity.female <- sqrt((angle.female/duration)^2)
       
       waves$duration[i] <- duration
@@ -299,7 +344,7 @@ build.waves <- function(lefts, rights) {
       eye.start <- rights$pt11_rX[j]
       eye.end <- rights$pt11_rX[j+1]
       
-      angle.female <- visual_angle(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r, eye.start, eye.end)
+      angle.female <- visual_angle(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r)
       velocity.female <- sqrt((angle.female/duration)^2)
       
       waves$duration[i] <- duration

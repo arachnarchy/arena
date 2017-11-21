@@ -7,6 +7,8 @@ library(dplyr)
 library(tidyr)
 library(readxl)
 library(stringr)
+library(rgl)
+library(readr)
 source("R/build_spider_fun.R")
 
 waves.all <- numeric()
@@ -102,7 +104,7 @@ if(trial.curr %in% trials24) {
 }
 
 # add rotated points to trial.data
-trial.data <- create_female_view(trial.data)
+trial.data <- create_rotated_view(trial.data)
 
 # deal with "end/start" values by duplicating those rows
 trial.data <- split_endStart(trial.data)
@@ -145,12 +147,7 @@ if(any(trial.CI[, 1:36] > 1)){
        message(sprintf("%s: suspicious point(s): %s.", trial.curr, paste0(which(trial.CI[,1:36] > 1), collapse = ", ")))} # FIX right now finds returns cell indices instead of frames that fit condition
 
 # calculate frame with one row per wave----------------------------------------------
-
-waves <- build.waves(lefts, rights) # TO-DO: integrate the visual angle into the build.waves function
-
-# add ID and condition columns
-waves$id <- str_sub(trial.curr, 1, 4)
-waves$treat <- str_sub(trial.curr, 6, -1)
+waves <- build.waves(lefts, rights)
 
 waves.all <- rbind(waves.all, waves)
 }
