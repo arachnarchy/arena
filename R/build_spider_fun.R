@@ -102,44 +102,6 @@ xyz.matrix <- function(trial.data.row){
   return(points)
 }   #1: Makes a 12x3 matrix from one row of trial.data
 
-female_azimuth <- function(points){
-  # this function calculates female "camera" angle vs world x-axis. Takes data from one frame as a [12,3] xyz array
-  
-  pt.11 <- c(points[11,1], points[11,2], 1)
-  pt.12 <- c(points[12,1], points[12,2], 1)
-  
-  vertPlane <- c(0, 1, 0) # orthogonal vector to horizontal plane
-  fem <- pt.11 - pt.12
-  
-  # calculates "camera" angle vs world x-axis.
-  camera <-
-    asin(norm_vec(vertPlane * fem) / norm_vec(fem) * norm_vec(vertPlane))
-  
-  # determines quadrant of vector
-  if (fem[1] > 0) {
-    if (fem[2] > 0) {
-      q <- 1
-    } else {
-      q <- 4
-    }
-  } else if (fem[2] > 0) {
-    q <- 2
-  } else{
-    q <- 3
-  }
-  
-  # corrects the angle depending on quadrant
-  if (q == 1) {
-    camera <- (2 * pi) - camera
-  } else if (q == 2) {
-    camera <- pi + camera
-  } else if (q == 3) {
-    camera <- pi - camera
-  }
-  
-  return(camera)
-}    #2: calculates female "camera" angle vs world x-axis. Takes data from one frame as a [12,3] xyz array
-
 male_azimuth <- function(points){
   # this function calculates male "camera" angle vs world x-axis. Takes data from one frame as a [12,3] xyz array
   
@@ -213,10 +175,6 @@ return(trial.data)
 visual_angle <- function(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r){
   # script takes xyz coords of each point (3 length vector). Then does a projection where, in this rotated orientation,
   # e.g. pt3_rX AKA coxa.start.r[1] becomes the depth coordinate for scaling, pt3_rY becomes x, and pt3_rZ becomes y.
-  # TO-DO: fix so correct angles are produced when male not in front of female.
-  
-  # 2D y is distance from coxa(x,y,0) to coxa(x,y,z) DIVIDED BY distance from pt11(x,y,0) to coxa(x,y,0)
-  # 2D x is distance from coxa(x,y,0) to coxa(x,y,z) DIVIDED BY distance from pt11(x,y,0) to coxa(x,y,0)
   
   # with female position as (0,0,0):
   coxa.start.proj_x <- coxa.start.r[2] / coxa.start.r[1]
