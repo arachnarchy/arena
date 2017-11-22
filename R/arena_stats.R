@@ -34,6 +34,7 @@ waves_by_trial <- by_trial %>% summarize(
   visual_angle = mean(visual.angle),
   velocity_va = mean(visual.velocity),
   duration = mean(duration),
+  distance_1st = distance[which.min(start)],
   distance = mean(distance),
   n.waves = n()
 )
@@ -64,7 +65,7 @@ smry.av <- by_treatment %>% summarize(
 # test <-
 #   lme(visual_angle ~ treat_n, random = ~ 1 | id, data = waves_by_trial)
 test <-
-  lme(distance ~ treat_n, random = ~ 1 | id, data = waves_by_trial)
+  lme(distance_1st ~ treat_n, random = ~ 1 | id, data = waves_by_trial)
 summary(test)
 anova(test)
 
@@ -104,6 +105,16 @@ plot_vis_background <- ggplot(waves_by_trial, aes(x = treat, y = visual_angle)) 
 plot_dist_background <- ggplot(waves_by_trial, aes(x = treat, y = distance)) +
   geom_point(size = 1) +
   geom_boxplot(alpha = 0) +
+  ylim(0, 50) +
+  xlab("background") +
+  ylab("distance (mm)") +
+  theme_classic()
+
+## 4b: plot distance at 1st wave by background categories
+plot_dist1_background <- ggplot(waves_by_trial, aes(x = treat, y = distance_1st)) +
+  geom_point(size = 1) +
+  geom_boxplot(alpha = 0) +
+  ylim(0, 50) +
   xlab("background") +
   ylab("distance (mm)") +
   theme_classic()
