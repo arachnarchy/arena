@@ -5,6 +5,8 @@ library(ggplot2)
 library(utils)
 library(lme4)
 library(nlme)
+library(ggpubr)
+
 
 #------------------------READ & WRANGLE DATA------------------------------------------------------#
 waves <- read.csv(
@@ -32,8 +34,13 @@ waves_by_trial <- by_trial %>% summarize(
   visual_angle = mean(visual.angle),
   velocity_va = mean(visual.velocity),
   duration = mean(duration),
+  distance = mean(distance),
   n.waves = n()
 )
+
+# add crude numeric coding of treatments
+waves_by_trial <- waves_by_trial %>%
+  mutate(treat_n = ifelse(treat == "white", 0, ifelse(treat == "0x", 0.1, ifelse(treat == "1x", 1, 1.1))))
 
 #------------------------SUMMARY STATS------------------------------------------------------------#
 
@@ -44,6 +51,7 @@ smry.av <- by_treatment %>% summarize(
   mean.velocity_male = mean(velocity_male),
   mean.visual_angle = mean(visual_angle),
   mean.velocity_va = mean(velocity_va),
+  mean.distance = mean(distance),
   mean.n = mean(n.waves),
   sd.amplitude_male = sd(amplitude_male),
   sd.velocity_male = sd(velocity_male),
@@ -52,8 +60,11 @@ smry.av <- by_treatment %>% summarize(
   sd.n = sd(n.waves)
 )
 
+#TO-DO: code treatments as ordinal
+# test <-
+#   lme(visual_angle ~ treat_n, random = ~ 1 | id, data = waves_by_trial)
 test <-
-  lme(visual_angle ~ treat, random = ~ 1 | id, data = waves_by_trial)
+  lme(distance ~ treat_n, random = ~ 1 | id, data = waves_by_trial)
 summary(test)
 anova(test)
 
@@ -73,15 +84,53 @@ plot_visVvel <- ggplot(waves_by_trial, aes(x = visual_angle, y = velocity_va)) +
   ylab("visual angle (degrees)") +
   theme_classic()
 
+## 3: plot wave amplitude by background categories
+plot_amp_background <- ggplot(waves_by_trial, aes(x = treat, y = amplitude_male)) +
+  geom_point(size = 1) +
+  geom_boxplot(alpha = 0) +
+  xlab("background") +
+  ylab("wave amplitude (degrees)") +
+  theme_classic()
+
 ## 3: plot visual angle by background categories
-plot_visual_angle <- ggplot(waves_by_trial, aes(x = treat, y = visual_angle)) +
+plot_vis_background <- ggplot(waves_by_trial, aes(x = treat, y = visual_angle)) +
   geom_point(size = 1) +
   geom_boxplot(alpha = 0) +
   xlab("background") +
   ylab("visual angle (degrees)") +
   theme_classic()
 
-plot_visual_angle
+## 4: plot distance by background categories
+plot_dist_background <- ggplot(waves_by_trial, aes(x = treat, y = distance)) +
+  geom_point(size = 1) +
+  geom_boxplot(alpha = 0) +
+  xlab("background") +
+  ylab("distance (mm)") +
+  theme_classic()
+
+## 5: Scatterplot of amplitude_male vs vs distance to female
+plot_ampVdist <- ggplot(waves_by_trial, aes(x = distance, y = amplitude_male)) +
+  geom_point() +
+  xlab("distance (mm)") +
+  ylab("wave amplitude (degrees)") +
+  theme_classic()
+
+## 6: Scatterplot of visual angle vs vs distance to female
+plot_visVdist <- ggplot(waves_by_trial, aes(x = distance, y = visual_angle)) +
+  geom_point() +
+  xlab("distance (mm)") +
+  ylab("visual angle (degrees)") +
+  theme_classic()
+
+# plots to gauge normality
+ggdensity(waves_by_trial$visual_angle) # density plot
+ggqqplot(waves_by_trial$visual_angle) # quantile-quantile plot
+
+# plot_amp_background
+# plot_vis_background
+# plot_dist_background
+# plot_ampVdist
+# plot_visVdist
 
 ## same as heatmap
 # df <- data.frame(waves.by_trial$velocity, waves.by_trial$amplitude)
