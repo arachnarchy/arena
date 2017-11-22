@@ -132,25 +132,6 @@ ggqqplot(waves_by_trial$visual_angle) # quantile-quantile plot
 # plot_ampVdist
 # plot_visVdist
 
-## same as heatmap
-# df <- data.frame(waves.by_trial$velocity, waves.by_trial$amplitude)
-# colnames(df) <- c("x", "y")
-# 
-# the_heat <- ggplot(data = df, aes(x, y)) +
-#   stat_density2d(
-#     aes(fill = ..level.., alpha = ..level..),
-#     geom = 'polygon',
-#     colour = 'black',
-#     size = .25) +
-#   scale_fill_continuous(low = "white", high = "red") +
-#   guides(alpha = "none") +
-#   theme_classic() +
-#   theme(legend.position = "none") +
-#   xlim(0, 175) +
-#   ylim(0, 60)
-# 
-#   rm(df)
-
 ## plot 1 faceted by background
 plot_ampVvel_background <- ggplot(waves_by_trial, aes(x = velocity_male, y = amplitude_male)) +
   geom_point() +
@@ -173,8 +154,28 @@ plot_visVvel_background <- ggplot(waves_by_trial, aes(x = velocity_va , y = visu
         panel.border = element_rect(fill = NA),
         axis.line = element_blank())
 
-plot_ampVvel_background
-plot_visVvel_background
+# plot_ampVvel_background
+# plot_visVvel_background
+
+## same as heatmap
+# df <- data.frame(waves.by_trial$velocity, waves.by_trial$amplitude)
+# colnames(df) <- c("x", "y")
+# 
+# the_heat <- ggplot(data = df, aes(x, y)) +
+#   stat_density2d(
+#     aes(fill = ..level.., alpha = ..level..),
+#     geom = 'polygon',
+#     colour = 'black',
+#     size = .25) +
+#   scale_fill_continuous(low = "white", high = "red") +
+#   guides(alpha = "none") +
+#   theme_classic() +
+#   theme(legend.position = "none") +
+#   xlim(0, 175) +
+#   ylim(0, 60)
+# 
+#   rm(df)
+
 
 ##
 plot.av.by_strokes <- ggplot(waves, aes(x = velocity.male, y = amplitude.male, color = stroke)) +
