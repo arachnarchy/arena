@@ -9,6 +9,9 @@ library(ggpubr)
 
 
 #------------------------READ & WRANGLE DATA------------------------------------------------------#
+
+make_plots <- 0 # make all the plots?
+
 waves <- read.csv(
     "waves.csv",
     header = TRUE
@@ -71,6 +74,7 @@ anova(test)
 
 #------------------------PLOT ZONE----------------------------------------------------------------#
 
+if(make_plots == 1){
 ## 1: Simple scatterplot of male amplitude vs velocity
 plot_ampVvel <- ggplot(waves_by_trial, aes(x = velocity_male, y = amplitude_male)) +
   geom_point() +
@@ -197,7 +201,8 @@ histo.v <- ggplot(waves, aes(x = velocity.male)) +
 
 histo.a <- ggplot(waves, aes(x = amp)) +
   geom_histogram(binwidth = 5)
-
+}
 #------------------------END MATTER---------------------------------------------------------------#
 
+write.csv(waves_by_trial, file = "waves_by_trial.csv")
 save.image("arena.RData")
