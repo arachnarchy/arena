@@ -11,6 +11,7 @@ library(rgl)
 library(readr)
 source("R/build_spider_fun.R")
 
+raw_data.all <- numeric()
 waves.all <- numeric()
 
 # Point script at raw data----
@@ -54,15 +55,20 @@ trials30 <- c("1864 1.5x",
 for(i in 1:length(trials)){
   
 trial.curr <- trials[i]
-file.points <- list.files(paste0("Data/", trial.curr), pattern = "_xyzpts.csv")     # find xyz point file
-file.StaEnd <- list.files(paste0("Data/", trial.curr), pattern = "_StartEnd.xlsx")  # find start/end frames file
-file.CI <- list.files(paste0("Data/", trial.curr), pattern = "_xyzCI.csv")          # find xyz point file
 
-file.points <- paste0("Data/", trial.curr,"/",file.points)                          # assemble file path
+## identify xyz points, start/end, and CI tables
+file.points <-
+  list.files(paste0("Data/", trial.curr), pattern = "_xyzpts.csv")     
+file.StaEnd <-
+  list.files(paste0("Data/", trial.curr), pattern = "_StartEnd.xlsx")  
+file.CI <-
+  list.files(paste0("Data/", trial.curr), pattern = "_xyzCI.csv")          
+
+file.points <- paste0("Data/", trial.curr,"/",file.points)  # assemble file path
 file.StaEnd <- paste0("Data/", trial.curr,"/",file.StaEnd)
 file.CI <- paste0("Data/", trial.curr,"/",file.CI)
 
-# load data files and create frames holding coordinates of left and right waves ----
+## load data files and make frames holding coordinates of left and right waves
 trial.data <-
   read.csv(
     file.points,
@@ -81,13 +87,13 @@ start.end.frames <- read_excel(path = file.StaEnd)
 start.end.frames[is.na(start.end.frames)] <- 0 # change NAs to zeros
 
 # clean up DLT xyz and CI files by adding frame numbers and removing empty rows
-trial.data$frame<- 1:nrow(trial.data)
-trial.data<- na.omit(trial.data)
+trial.data$frame <- 1:nrow(trial.data)
+trial.data <- na.omit(trial.data)
 
-trial.CI$frame<- 1:nrow(trial.CI)
-trial.CI<- na.omit(trial.CI)
+trial.CI$frame <- 1:nrow(trial.CI)
+trial.CI <- na.omit(trial.CI)
 
-# clean up start/end file by omitting irrelevant columns and renaming the kept ones
+# clean up start/end file by omitting irrelevant columns and renaming the rest
 start.end.frames <- start.end.frames[, 2:4]
 colnames(start.end.frames) <- c("frame", "left", "right")
 
@@ -103,18 +109,18 @@ if(trial.curr %in% trials24) {
   trial.data$fps <- 120
 }
 
-# add rotated points to trial.data
+## add rotated points to trial.data
 trial.data <- create_rotated_view(trial.data)
 
-# deal with "end/start" values by duplicating those rows
+## deal with "end/start" values by duplicating those rows
 trial.data <- split_endStart(trial.data)
 
-# split waves into separate data frames for left and right for ease of use
+## split waves into separate data frames for left and right for ease of use
 waves.sides <- split.sides(trial.data)
 lefts <- data.frame(waves.sides[1])
 rights <- data.frame(waves.sides[2])
 
-# test if there are start/end frames missing---------------------------------------------
+## test if there are start/end frames missing---------------------------------------------
 
 if(sum(lefts$event == "start") != sum(lefts$event == "end")) {
   print(sprintf(
@@ -146,14 +152,17 @@ if (sum(rights$event == "start") != sum(rights$event == "end")) {
 if(any(trial.CI[, 1:36] > 1)){ 
        message(sprintf("%s: suspicious point(s): %s.", trial.curr, paste0(which(trial.CI[,1:36] > 1), collapse = ", ")))} # FIX right now finds returns cell indices instead of frames that fit condition
 
-# calculate frame with one row per wave----------------------------------------------
+## calculate frame with one row per wave----------------------------------------
 waves <- build.waves(lefts, rights)
 
+## build master dataframes
+trial.data$id <- str_sub(trial.curr, 1, 4)
+trial.data$treat <- str_sub(trial.curr, 6, -1)
+
+raw_data.all <- rbind(raw_data.all, trial.data)
 waves.all <- rbind(waves.all, waves)
+
 }
 
 # export to file
 write.csv(waves.all, file = "waves.csv")
-
-# clear workspace
-#rm(list = ls())

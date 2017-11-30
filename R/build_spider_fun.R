@@ -238,7 +238,10 @@ build.waves <- function(lefts, rights) {
       claw.end <-
         c(lefts$pt6_X[j + 1], lefts$pt6_Y[j + 1], lefts$pt6_Z[j + 1])
       
-      distance <- sqrt(((lefts$pt11_X[j] - lefts$pt1_X[j])^2) + ((lefts$pt11_Y[j] - lefts$pt1_Y[j])^2))
+      distance <- 
+        sqrt(((lefts$pt11_X[j] - lefts$pt1_X[j])^2) + 
+             ((lefts$pt11_Y[j] - lefts$pt1_Y[j])^2))
+      
       duration <- (lefts$frame[j + 1] - lefts$frame[j]) / lefts$fps[j] #duration in seconds
       amplitude <- wave_angle.abs(coxa.start, claw.start, coxa.end, claw.end)
       velocity <- sqrt((amplitude/duration)^2)
