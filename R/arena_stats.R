@@ -5,6 +5,7 @@ library(dplyr)
 library(ggplot2)
 library(utils)
 library(lme4)
+library(lmerTest) # for Satterthwaite approximation to get p-values in lmer
 library(nlme)
 library(ggpubr)
 
@@ -66,15 +67,34 @@ smry.av <- by_treatment %>% summarize(
   sd.n = sd(n.waves)
 )
 
-#TO-DO: code treatments as ordinal
-# test <-
-#   lme(visual_angle ~ treat_n, random = ~ 1 | id, data = waves_by_trial)
-test <-
-  lme(distance_1st ~ treat_n, random = ~ 1 | id, data = waves_by_trial)
-summary(test)
-anova(test)
+## Effects --------------------------------------------------------------------#
 
-#------------------------PLOT ZONE----------------------------------------------------------------#
+## Effects with treatment as categorical
+
+lmer1_c <- lmer(amplitude_male ~ treat + (1|id), data = waves_by_trial)
+lmer2_c <- lmer(visual_angle ~ treat + (1|id), data = waves_by_trial)
+lmer3_c <- lmer(distance ~ treat + (1|id), data = waves_by_trial)
+lmer4_c <- lmer(distance_1st ~ treat + (1|id), data = waves_by_trial)
+
+smry_lmer1_c <- summary(lmer1_c)
+smry_lmer2_c <- summary(lmer2_c)
+smry_lmer3_c <- summary(lmer3_c)
+smry_lmer4_c <- summary(lmer4_c)
+
+## Effects with treatment as ordinal (continuous)
+lmer1_o <- lmer(amplitude_male ~ treat_n + (1|id), data = waves_by_trial)
+lmer2_o <- lmer(visual_angle ~ treat_n + (1|id), data = waves_by_trial)
+lmer3_o <- lmer(distance ~ treat_n + (1|id), data = waves_by_trial)
+lmer4_o <- lmer(distance_1st ~ treat_n + (1|id), data = waves_by_trial)
+
+smry_lmer1_o <- summary(lmer1_o)
+smry_lmer2_o <- summary(lmer2_o)
+smry_lmer3_o <- summary(lmer3_o)
+smry_lmer4_o <- summary(lmer4_o)
+
+anova(lmer2_c, lmer2_o) # AIC lower for comtinuous treatment
+
+#------------------------PLOT ZONE---------------------------------------------#
 
 if(make_plots == 1){
 ## 1: Simple scatterplot of male amplitude vs velocity
