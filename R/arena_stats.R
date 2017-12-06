@@ -12,8 +12,6 @@ library(ggpubr)
 
 #------------------------READ & WRANGLE DATA-----------------------------------#
 
-make_plots <- 0 # make all the plots?
-
 waves <- read.csv("waves.csv", header = TRUE)
 
 # add down/upstroke column
@@ -24,118 +22,113 @@ waves$amp <- ifelse(waves$amplitude.male < 0,
                     waves$amplitude.male * -1, 
                     waves$amplitude.male)
 
-## reorder by treatment so output is more intuitive
+## reorder by treatment so output is more parsable
 order <- c("white", "0x", "1x", "1.5x")
 waves <- waves %>%
   mutate(treat =  factor(treat, levels = order)) %>%
   arrange(treat)
 
 ## make new table with means by trial (each contains different number of waves)
-by_trial <- waves %>% group_by(id, treat)
-waves_by_trial <- by_trial %>% summarize(
+waves_by_trial <- waves %>% group_by(id, treat) %>% summarize(
   amplitude_male = mean(amp),
-  velocity_male = mean(velocity.male),
-  visual_angle = mean(visual.angle),
-  velocity_va = mean(visual.velocity),
-  duration = mean(duration),
-  distance_1st = distance[which.min(start)],
-  distance = mean(distance),
-  n.waves = n()
+  velocity_male  = mean(velocity.male),
+  visual_angle   = mean(visual.angle),
+  velocity_va    = mean(visual.velocity),
+  duration       = mean(duration),
+  distance_1st   = distance[which.min(start)],
+  distance       = mean(distance),
+  n.waves        = n()
 )
 
-## add crude numeric coding of treatments
+## add numeric re-coding of treatments (tested with many spacings, no diff)
 waves_by_trial <- waves_by_trial %>%
   mutate(treat_n = ifelse(treat == "white", 0,
-                          ifelse(treat == "0x", 0.1,
-                                 ifelse(treat == "1x", 1, 1.1))))
+                          ifelse(treat == "0x", 1,
+                                 ifelse(treat == "1x", 2, 3))))
 
 #------------------------SUMMARY STATS-----------------------------------------#
 
-by_treatment <- waves_by_trial %>% group_by(treat)
-smry.av <- by_treatment %>% summarize(
+## Summary table
+summary_by_background <- waves_by_trial %>% group_by(treat) %>% summarize(
   count <- n(),
   mean.amplitude_male = mean(amplitude_male),
-  mean.velocity_male = mean(velocity_male),
-  mean.visual_angle = mean(visual_angle),
-  mean.velocity_va = mean(velocity_va),
-  mean.distance = mean(distance),
-  mean.n = mean(n.waves),
-  sd.amplitude_male = sd(amplitude_male),
-  sd.velocity_male = sd(velocity_male),
-  sd.visual_angle = sd(visual_angle),
-  sd.velocity_va = sd(velocity_va),
-  sd.n = sd(n.waves)
+  mean.velocity_male  = mean(velocity_male),
+  mean.visual_angle   = mean(visual_angle),
+  mean.velocity_va    = mean(velocity_va),
+  mean.distance       = mean(distance),
+  mean.n              = mean(n.waves),
+  sd.amplitude_male   = sd(amplitude_male),
+  sd.velocity_male    = sd(velocity_male),
+  sd.visual_angle     = sd(visual_angle),
+  sd.velocity_va      = sd(velocity_va),
+  sd.n                = sd(n.waves)
 )
 
-## Effects --------------------------------------------------------------------#
+## Treatment effect comparison ------------------------------------------------#
 
 ## Effects with treatment as categorical
+lmer1_cat <- lmer(amplitude_male ~ treat + (1|id), data = waves_by_trial)
+lmer2_cat <- lmer(visual_angle ~ treat + (1|id), data = waves_by_trial)
+lmer3_cat <- lmer(distance ~ treat + (1|id), data = waves_by_trial)
+lmer4_cat <- lmer(distance_1st ~ treat + (1|id), data = waves_by_trial)
 
-lmer1_c <- lmer(amplitude_male ~ treat + (1|id), data = waves_by_trial)
-lmer2_c <- lmer(visual_angle ~ treat + (1|id), data = waves_by_trial)
-lmer3_c <- lmer(distance ~ treat + (1|id), data = waves_by_trial)
-lmer4_c <- lmer(distance_1st ~ treat + (1|id), data = waves_by_trial)
-
-smry_lmer1_c <- summary(lmer1_c)
-smry_lmer2_c <- summary(lmer2_c)
-smry_lmer3_c <- summary(lmer3_c)
-smry_lmer4_c <- summary(lmer4_c)
+smry_lmer1_cat <- summary(lmer1_cat)
+smry_lmer2_cat <- summary(lmer2_cat)
+smry_lmer3_cat <- summary(lmer3_cat)
+smry_lmer4_cat <- summary(lmer4_cat)
 
 ## Effects with treatment as ordinal (continuous)
-lmer1_o <- lmer(amplitude_male ~ treat_n + (1|id), data = waves_by_trial)
-lmer2_o <- lmer(visual_angle ~ treat_n + (1|id), data = waves_by_trial)
-lmer3_o <- lmer(distance ~ treat_n + (1|id), data = waves_by_trial)
-lmer4_o <- lmer(distance_1st ~ treat_n + (1|id), data = waves_by_trial)
+lmer1_ord <- lmer(amplitude_male ~ treat_n + (1|id), data = waves_by_trial)
+lmer2_ord <- lmer(visual_angle ~ treat_n + (1|id), data = waves_by_trial)
+lmer3_ord <- lmer(distance ~ treat_n + (1|id), data = waves_by_trial)
+lmer4_ord <- lmer(distance_1st ~ treat_n + (1|id), data = waves_by_trial)
 
-smry_lmer1_o <- summary(lmer1_o)
-smry_lmer2_o <- summary(lmer2_o)
-smry_lmer3_o <- summary(lmer3_o)
-smry_lmer4_o <- summary(lmer4_o)
+smry_lmer1_ord <- summary(lmer1_ord)
+smry_lmer2_ord <- summary(lmer2_ord)
+smry_lmer3_ord <- summary(lmer3_ord)
+smry_lmer4_ord <- summary(lmer4_ord)
 
-anova(lmer2_c, lmer2_o) # AIC lower for comtinuous treatment
+anova(lmer2_cat, lmer2_ord) # compare AIC for both models >>> ordinal better
 
 #------------------------PLOT ZONE---------------------------------------------#
+  
+theme_set(theme_classic()) # set new global look for plots
 
-if(make_plots == 1){
-## 1: Simple scatterplot of male amplitude vs velocity
+## Simple scatterplot of male amplitude vs velocity
 plot_ampVvel <- ggplot(waves_by_trial, 
                        aes(x = velocity_male, 
                            y = amplitude_male)) +
   geom_point() +
   xlab("velocity (degrees/s)") +
-  ylab("amplitude (degrees)") +
-  theme_classic()
+  ylab("amplitude (degrees)")
 
-## 2: Simple scatterplot of visual angle vs va velocity
+## Simple scatterplot of visual angle vs va velocity
 plot_visVvel <- ggplot(waves_by_trial, 
                        aes(x = visual_angle, 
                            y = velocity_va)) +
   geom_point() +
   xlab("velocity (degrees/s)") +
-  ylab("visual angle (degrees)") +
-  theme_classic()
+  ylab("visual angle (degrees)")
 
-## 3: plot wave amplitude by background categories
+## Boxplot wave amplitude by background categories
 plot_amp_background <- ggplot(waves_by_trial, 
                               aes(x = treat, 
                                   y = amplitude_male)) +
   geom_point(size = 1) +
   geom_boxplot(alpha = 0) +
   xlab("background") +
-  ylab("wave amplitude (degrees)") +
-  theme_classic()
+  ylab("wave amplitude (degrees)")
 
-## 3: plot visual angle by background categories
+## Boxplot visual angle by background categories
 plot_vis_background <- ggplot(waves_by_trial, 
                               aes(x = treat, 
                                   y = visual_angle)) +
   geom_point(size = 1) +
   geom_boxplot(alpha = 0) +
   xlab("background") +
-  ylab("visual angle (degrees)") +
-  theme_classic()
+  ylab("visual angle (degrees)")
 
-## 4: plot distance by background categories
+## Boxplot distance by background categories
 plot_dist_background <- ggplot(waves_by_trial, 
                                aes(x = treat, 
                                    y = distance)) +
@@ -143,10 +136,9 @@ plot_dist_background <- ggplot(waves_by_trial,
   geom_boxplot(alpha = 0) +
   ylim(0, 50) +
   xlab("background") +
-  ylab("distance (mm)") +
-  theme_classic()
+  ylab("distance (mm)")
 
-## 4b: plot distance at 1st wave by background categories
+## Boxplot distance at 1st wave by background categories
 plot_dist1_background <- ggplot(waves_by_trial, 
                                 aes(x = treat, 
                                     y = distance_1st)) +
@@ -154,100 +146,53 @@ plot_dist1_background <- ggplot(waves_by_trial,
   geom_boxplot(alpha = 0) +
   ylim(0, 50) +
   xlab("background") +
-  ylab("distance (mm)") +
-  theme_classic()
+  ylab("distance (mm)")
 
-## 5: Scatterplot of amplitude_male vs vs distance to female
+## Scatterplot of amplitude_male vs vs distance to female
 plot_ampVdist <- ggplot(waves_by_trial, 
                         aes(x = distance, 
                             y = amplitude_male)) +
   geom_point() +
   xlab("distance (mm)") +
-  ylab("wave amplitude (degrees)") +
-  theme_classic()
+  ylab("wave amplitude (degrees)")
 
-## 6: Scatterplot of visual angle vs vs distance to female
+## Scatterplot of visual angle vs vs distance to female
 plot_visVdist <- ggplot(waves_by_trial, 
                         aes(x = distance, 
                             y = visual_angle)) +
   geom_point() +
   xlab("distance (mm)") +
-  ylab("visual angle (degrees)") +
-  theme_classic()
+  ylab("visual angle (degrees)")
 
 # plots to gauge normality
-ggdensity(waves_by_trial$visual_angle) # density plot
-ggqqplot(waves_by_trial$visual_angle) # quantile-quantile plot
+# ggdensity(waves_by_trial$visual_angle) # density plot
+# ggqqplot(waves_by_trial$visual_angle) # quantile-quantile plot
 
-# plot_amp_background
-# plot_vis_background
-# plot_dist_background
-# plot_ampVdist
-# plot_visVdist
+## Save publication-ready plots -----------------------------------------------#
 
-## plot 1 faceted by background
-plot_ampVvel_background <- ggplot(waves_by_trial, 
-                                  aes(x = velocity_male, 
-                                      y = amplitude_male)) +
-  geom_point() +
-  xlab("velocity (degrees/s)") +
-  ylab("amplitude (degrees)") +
-  facet_wrap(~ treat) +
-  theme_classic() +
-  theme(strip.background  = element_blank(),
-        panel.border = element_rect(fill = NA),
-        axis.line = element_blank())
+# ggsave wrapper to set default plot export settings
+my.ggsave <-
+  function(filename = default_name(plot),
+           plot = plot,
+           height = 6,
+           width = 6,
+           dpi = 72) {
+    ggsave(
+      filename = filename,
+      plot = plot,
+      height = height,
+      width = width,
+      dpi = dpi
+    )
+  }
 
-## plot 2 faceted by background
-plot_visVvel_background <- ggplot(waves_by_trial, 
-                                  aes(x = velocity_va , 
-                                      y = visual_angle)) +
-  geom_point() +
-  xlab("velocity (degrees/s)") +
-  ylab("visual angle (degrees)") +
-  facet_wrap(~ treat) +
-  theme_classic() +
-  theme(strip.background  = element_blank(),
-        panel.border = element_rect(fill = NA),
-        axis.line = element_blank())
+my.ggsave("figures/amplitude vs distance.eps", plot_ampVdist)
+my.ggsave("figures/angle vs distance.eps", plot_visVdist)
+my.ggsave("figures/amplitude vs background.eps", plot_amp_background)
+my.ggsave("figures/angle vs background.eps", plot_vis_background)
+my.ggsave("figures/distance vs background.eps", plot_dist_background)
 
-# plot_ampVvel_background
-# plot_visVvel_background
-
-## same as heatmap
-# df <- data.frame(waves.by_trial$velocity, waves.by_trial$amplitude)
-# colnames(df) <- c("x", "y")
-# 
-# the_heat <- ggplot(data = df, aes(x, y)) +
-#   stat_density2d(
-#     aes(fill = ..level.., alpha = ..level..),
-#     geom = 'polygon',
-#     colour = 'black',
-#     size = .25) +
-#   scale_fill_continuous(low = "white", high = "red") +
-#   guides(alpha = "none") +
-#   theme_classic() +
-#   theme(legend.position = "none") +
-#   xlim(0, 175) +
-#   ylim(0, 60)
-# 
-#   rm(df)
-
-
-##
-plot.av.by_strokes <- ggplot(waves, 
-                             aes(x = velocity.male, 
-                                 y = amplitude.male, 
-                                 color = stroke)) +
-  geom_point()
-
-histo.v <- ggplot(waves, aes(x = velocity.male)) +
-  geom_histogram(binwidth = 5)
-
-histo.a <- ggplot(waves, aes(x = amp)) +
-  geom_histogram(binwidth = 5)
-}
-#------------------------END MATTER---------------------------------------------------------------#
+#------------------------END MATTER--------------------------------------------#
 
 write.csv(waves_by_trial, file = "waves_by_trial.csv")
 save.image("arena.RData")
