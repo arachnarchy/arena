@@ -4,10 +4,9 @@
 library(dplyr)
 library(ggplot2)
 library(utils)
-library(lme4)
+library(lme4) # for mixed models
 library(lmerTest) # for Satterthwaite approximation to get p-values in lmer
-library(nlme)
-library(ggpubr)
+library(ggpubr) # for density and qq plots
 
 
 #------------------------READ & WRANGLE DATA-----------------------------------#
@@ -174,9 +173,9 @@ plot_visVdist <- ggplot(waves_by_trial,
 my.ggsave <-
   function(filename = default_name(plot),
            plot = plot,
-           height = 6,
-           width = 6,
-           dpi = 72) {
+           height = 3,
+           width = 3,
+           dpi = 300) {
     ggsave(
       filename = filename,
       plot = plot,
@@ -186,11 +185,11 @@ my.ggsave <-
     )
   }
 
-my.ggsave("figures/amplitude vs distance.eps", plot_ampVdist)
-my.ggsave("figures/angle vs distance.eps", plot_visVdist)
-my.ggsave("figures/amplitude vs background.eps", plot_amp_background)
-my.ggsave("figures/angle vs background.eps", plot_vis_background)
-my.ggsave("figures/distance vs background.eps", plot_dist_background)
+my.ggsave("figures/amplitude vs distance.jpg", plot_ampVdist)
+my.ggsave("figures/angle vs distance.jpg", plot_visVdist)
+my.ggsave("figures/amplitude vs background.jpg", plot_amp_background)
+my.ggsave("figures/angle vs background.jpg", plot_vis_background)
+my.ggsave("figures/distance vs background.jpg", plot_dist_background)
 
 #------------------------END MATTER--------------------------------------------#
 
