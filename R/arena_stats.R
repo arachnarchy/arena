@@ -82,10 +82,16 @@ lmer2_ord <- lmer(visual_angle ~ treat_n + (1|id), data = waves_by_trial)
 lmer3_ord <- lmer(distance ~ treat_n + (1|id), data = waves_by_trial)
 lmer4_ord <- lmer(distance_1st ~ treat_n + (1|id), data = waves_by_trial)
 
+lmer5_ord <- lmer(velocity_male ~ treat_n + (1|id), data = waves_by_trial)
+lmer6_ord <- lmer(velocity_va ~ treat_n + (1|id), data = waves_by_trial)
+
 smry_lmer1_ord <- summary(lmer1_ord)
 smry_lmer2_ord <- summary(lmer2_ord)
 smry_lmer3_ord <- summary(lmer3_ord)
 smry_lmer4_ord <- summary(lmer4_ord)
+
+smry_lmer5_ord <- summary(lmer5_ord)
+smry_lmer6_ord <- summary(lmer6_ord)
 
 anova(lmer2_cat, lmer2_ord) # compare AIC for both models >>> ordinal better
 
@@ -152,16 +158,36 @@ plot_ampVdist <- ggplot(waves_by_trial,
                         aes(x = distance, 
                             y = amplitude_male)) +
   geom_point() +
+  xlim(0,50) +
+  ylim(0,50) +
   xlab("distance (mm)") +
   ylab("wave amplitude (degrees)")
+
+## Scatterplot of velocity_male vs vs distance to female
+plot_velVdist <- ggplot(waves_by_trial, 
+                        aes(x = distance, 
+                            y = velocity_male)) +
+  geom_point() +
+  xlab("distance (mm)") +
+  ylab("wave velocity (degrees/s)")
 
 ## Scatterplot of visual angle vs vs distance to female
 plot_visVdist <- ggplot(waves_by_trial, 
                         aes(x = distance, 
                             y = visual_angle)) +
   geom_point() +
+  xlim(0,50) +
+  ylim(0,50) +
   xlab("distance (mm)") +
   ylab("visual angle (degrees)")
+
+## Scatterplot of velocity_va vs distance to female
+plot_vel_vaVdist <- ggplot(waves_by_trial, 
+                        aes(x = distance, 
+                            y = velocity_va)) +
+  geom_point() +
+  xlab("distance (mm)") +
+  ylab("wave velocity (degrees/s)")
 
 # plots to gauge normality
 # ggdensity(waves_by_trial$visual_angle) # density plot
