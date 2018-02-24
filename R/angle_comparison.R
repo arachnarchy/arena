@@ -1,6 +1,7 @@
 ## script to visualize relationship of wave amplitude and distance
 library(dplyr)
 library(tidyr)
+library(ggplot2)
 
 source("R/build_spider_fun.R")
 
@@ -28,4 +29,3 @@ comp <- ggplot() +
   xlab("distance (mm)") +
   ylab("visual angle (degrees)")
 
-comp

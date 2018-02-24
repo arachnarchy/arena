@@ -2,6 +2,7 @@
 ## Needs "waves.csv" file produced by "build_spider.r"
 
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(utils)
 library(lme4) # for mixed models
@@ -12,6 +13,38 @@ library(ggpubr) # for density and qq plots
 #------------------------READ & WRANGLE DATA-----------------------------------#
 
 waves <- read.csv("waves.csv", header = TRUE)
+
+
+# add trial ID
+waves$trial_ID <- paste0(waves$id, " ", waves$treat)
+
+# remove that one trial with only 2 waves
+waves <- waves[!waves$trial_ID == "1856 0x",]
+
+# # add time column
+trials24 <- c("1854 0x","1854 white","1856 0x","1863 0x","1863 white",
+              "1864 white","1864 0x","1866 white","1895 0x","1895 white",
+              "1927 white", "1929 0x","1929 white","1939 0x","1927 0x",
+              "1939 white","1946 0x","1946 white","1947 0x","1967 0x",
+              "1984 0x","1974 white","1974 0x","1927 1x","1988 white",
+              "1988 0x")
+
+trials30 <- c("1864 1.5x","1867 1x")
+
+for(i in 1:nrow(waves)) {
+  if (waves$trial_ID[i] %in% trials24) {
+    waves$fps[i] <- 24
+  } else if (waves$trial_ID[i] %in% trials30) {
+    waves$fps[i] <- 30
+  } else {
+    waves$fps[i] <- 120
+  }
+  
+  waves$time[i] <-
+    1000 / waves$fps[i] * 
+    (waves$start[i] - min(waves$start[waves$trial_ID == waves$trial_ID[i] &
+                                               waves$leg == waves$leg[i]]))
+}
 
 # add down/upstroke column
 waves$stroke <- ifelse(waves$amplitude.male < 0, "down", "up")
@@ -36,8 +69,27 @@ waves_by_trial <- waves %>% group_by(id, treat) %>% summarize(
   duration       = mean(duration),
   distance_1st   = distance[which.min(start)],
   distance       = mean(distance),
-  n.waves        = n()
+  trial_duration = max(time),
+  n.waves        = n(),
+  wave_rate      = (n.waves / trial_duration) * 1000
 )
+
+waverate <-
+  waves_by_trial[] %>% 
+  group_by(id) %>% 
+  summarise(waverate = mean(wave_rate)) %>% 
+  summarize(wr = mean(waverate),sd = sd(waverate))
+
+# simple up-downstroke summary stats without looking at backgrounds
+descr_stats <- 
+  waves %>% 
+  group_by(id, stroke) %>% 
+  summarize(amplitude_male = mean(amplitude.male)) %>% 
+  group_by(stroke) %>% 
+  summarise(amp = mean(amplitude_male),
+            sd = sd(amplitude_male))
+
+t.test(abs(amplitude_male) ~ stroke, data = descr_stats, paired = TRUE)
 
 ## add numeric re-coding of treatments (tested with many spacings, no diff)
 waves_by_trial <- waves_by_trial %>%
@@ -66,15 +118,15 @@ summary_by_background <- waves_by_trial %>% group_by(treat) %>% summarize(
 ## Treatment effect comparison ------------------------------------------------#
 
 ## Effects with treatment as categorical
-lmer1_cat <- lmer(amplitude_male ~ treat + (1|id), data = waves_by_trial)
-lmer2_cat <- lmer(visual_angle ~ treat + (1|id), data = waves_by_trial)
-lmer3_cat <- lmer(distance ~ treat + (1|id), data = waves_by_trial)
-lmer4_cat <- lmer(distance_1st ~ treat + (1|id), data = waves_by_trial)
-
-smry_lmer1_cat <- summary(lmer1_cat)
-smry_lmer2_cat <- summary(lmer2_cat)
-smry_lmer3_cat <- summary(lmer3_cat)
-smry_lmer4_cat <- summary(lmer4_cat)
+# lmer1_cat <- lmer(amplitude_male ~ treat + (1|id), data = waves_by_trial)
+# lmer2_cat <- lmer(visual_angle ~ treat + (1|id), data = waves_by_trial)
+# lmer3_cat <- lmer(distance ~ treat + (1|id), data = waves_by_trial)
+# lmer4_cat <- lmer(distance_1st ~ treat + (1|id), data = waves_by_trial)
+# 
+# smry_lmer1_cat <- summary(lmer1_cat)
+# smry_lmer2_cat <- summary(lmer2_cat)
+# smry_lmer3_cat <- summary(lmer3_cat)
+# smry_lmer4_cat <- summary(lmer4_cat)
 
 ## Effects with treatment as ordinal (continuous)
 lmer1_ord <- lmer(amplitude_male ~ treat_n + (1|id), data = waves_by_trial)
@@ -85,6 +137,8 @@ lmer4_ord <- lmer(distance_1st ~ treat_n + (1|id), data = waves_by_trial)
 lmer5_ord <- lmer(velocity_male ~ treat_n + (1|id), data = waves_by_trial)
 lmer6_ord <- lmer(velocity_va ~ treat_n + (1|id), data = waves_by_trial)
 
+lmer7_ord <- lmer(amplitude_male ~ distance + (1|id), data = waves_by_trial)
+
 smry_lmer1_ord <- summary(lmer1_ord)
 smry_lmer2_ord <- summary(lmer2_ord)
 smry_lmer3_ord <- summary(lmer3_ord)
@@ -92,6 +146,8 @@ smry_lmer4_ord <- summary(lmer4_ord)
 
 smry_lmer5_ord <- summary(lmer5_ord)
 smry_lmer6_ord <- summary(lmer6_ord)
+
+smry_lmer7_ord <- summary(lmer7_ord)
 
 anova(lmer2_cat, lmer2_ord) # compare AIC for both models >>> ordinal better
 
@@ -158,10 +214,34 @@ plot_ampVdist <- ggplot(waves_by_trial,
                         aes(x = distance, 
                             y = amplitude_male)) +
   geom_point() +
+  geom_smooth(method="lm") +
   xlim(0,50) +
   ylim(0,50) +
   xlab("distance (mm)") +
   ylab("wave amplitude (degrees)")
+
+## Scatterplot of RAW amplitude_male vs vs distance to female (no avg by trial)
+plot_RAWampVdist <- ggplot(waves, 
+                        aes(x = distance, 
+                            y = abs(amplitude.male),
+                            color = trial_ID)) +
+  #geom_point() +
+  geom_smooth(method="lm", fill=NA) +
+  xlim(0,60) +
+  ylim(0,60) +
+  xlab("distance (mm)") +
+  ylab("wave amplitude (degrees)") +
+  theme(legend.position="none")
+
+## Lines of time vs distance to female (shows )
+plot_distVtime <- ggplot(waves, 
+                        aes(x = time, 
+                            y = distance,
+                            color = trial_ID)) +
+  geom_line() +
+  xlab("time") +
+  ylab("distance") +
+  theme(legend.position="none")
 
 ## Scatterplot of velocity_male vs vs distance to female
 plot_velVdist <- ggplot(waves_by_trial, 
@@ -171,13 +251,14 @@ plot_velVdist <- ggplot(waves_by_trial,
   xlab("distance (mm)") +
   ylab("wave velocity (degrees/s)")
 
-## Scatterplot of visual angle vs vs distance to female
+## Scatterplot of visual angle vs distance to female
 plot_visVdist <- ggplot(waves_by_trial, 
                         aes(x = distance, 
                             y = visual_angle)) +
   geom_point() +
-  xlim(0,50) +
-  ylim(0,50) +
+  geom_smooth(method = "gam", formula = y ~ atan(1/x), se = TRUE) +
+  xlim(10,50) +
+  ylim(0,15) +
   xlab("distance (mm)") +
   ylab("visual angle (degrees)")
 
