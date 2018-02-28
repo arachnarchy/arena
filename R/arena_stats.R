@@ -8,6 +8,7 @@ library(utils)
 library(lme4) # for mixed models
 library(lmerTest) # for Satterthwaite approximation to get p-values in lmer
 library(ggpubr) # for density and qq plots
+library(nlstools) # for CI on nonlinear fit
 
 
 #------------------------READ & WRANGLE DATA-----------------------------------#
@@ -17,11 +18,12 @@ waves <- read.csv("waves.csv", header = TRUE)
 
 # add trial ID
 waves$trial_ID <- paste0(waves$id, " ", waves$treat)
+waves_by_trial$trial_n <- seq(1:65)
 
 # remove that one trial with only 2 waves
 waves <- waves[!waves$trial_ID == "1856 0x",]
 
-# # add time column
+# add time column
 trials24 <- c("1854 0x","1854 white","1856 0x","1863 0x","1863 white",
               "1864 white","1864 0x","1866 white","1895 0x","1895 white",
               "1927 white", "1929 0x","1929 white","1939 0x","1927 0x",
@@ -81,15 +83,26 @@ waverate <-
   summarize(wr = mean(waverate),sd = sd(waverate))
 
 # simple up-downstroke summary stats without looking at backgrounds
-descr_stats <- 
+updown_by_trial <- 
   waves %>% 
   group_by(id, stroke) %>% 
-  summarize(amplitude_male = mean(amplitude.male)) %>% 
-  group_by(stroke) %>% 
-  summarise(amp = mean(amplitude_male),
-            sd = sd(amplitude_male))
+  summarize(amplitude_male = mean(amplitude.male),
+            trial_duration = max(time),
+            n.waves        = n(),
+            wave_rate      = (n.waves / trial_duration) * 1000)
 
-t.test(abs(amplitude_male) ~ stroke, data = descr_stats, paired = TRUE)
+updown_stats <- updown_by_trial %>%
+  group_by(stroke) %>%
+  summarise(
+    waves.n = n(),
+    amplitude = mean(amplitude_male),
+    amplitude.sd = sd(amplitude_male),
+    rate = mean(wave_rate),
+    rate.sd = sd(wave_rate)
+  )
+
+t.test(abs(wave_rate) ~ stroke, data = updown_by_trial, paired = TRUE)
+t.test(abs(amplitude_male) ~ stroke, data = updown_by_trial, paired = TRUE)
 
 ## add numeric re-coding of treatments (tested with many spacings, no diff)
 waves_by_trial <- waves_by_trial %>%
@@ -139,6 +152,9 @@ lmer6_ord <- lmer(velocity_va ~ treat_n + (1|id), data = waves_by_trial)
 
 lmer7_ord <- lmer(amplitude_male ~ distance + (1|id), data = waves_by_trial)
 
+# test <- aov(distance ~ treat_n, data = waves_by_trial)
+# summary(test)
+
 smry_lmer1_ord <- summary(lmer1_ord)
 smry_lmer2_ord <- summary(lmer2_ord)
 smry_lmer3_ord <- summary(lmer3_ord)
@@ -149,7 +165,44 @@ smry_lmer6_ord <- summary(lmer6_ord)
 
 smry_lmer7_ord <- summary(lmer7_ord)
 
-anova(lmer2_cat, lmer2_ord) # compare AIC for both models >>> ordinal better
+# anova(lmer2_cat, lmer2_ord) # compare AIC for both models >>> ordinal better
+
+## fit proper model to visual angle vs distance. It's not linear but geometric
+
+stat.fun <- function(a, x){rad2deg(atan(a/x))} # static model
+dyna.fun <- function(a, b, x){rad2deg(atan((a + (b * x))/x))} # dynamic model
+dyna.fun.r <- function(a, x){rad2deg(atan((a + (0.02 * x))/x))} 
+
+x <- waves_by_trial$distance
+y <- waves_by_trial$visual_angle
+
+# plot curve with guessed values until close
+plot(x, y, xlim = c(0, 50), ylim = c(0, 20))
+# curve(stat.fun(2, x), add = TRUE)
+# curve(dyna.fun(0.5, 0.01, x), add = TRUE)
+curve(rad2deg(atan((1.868 + .02 * x)/ x)), xlim = c(0, 50), ylim = c(0, 20), add = TRUE)
+curve(rad2deg(atan((1.693381 + .02 * x)/ x)), xlim = c(0, 50), ylim = c(0, 20), add = TRUE)
+curve(rad2deg(atan((2.043169 + .02 * x)/ x)), xlim = c(0, 50), ylim = c(0, 20), add = TRUE)
+#curve(rad2deg(atan((1.868 + 0 * x)/ x)), xlim = c(0, 50), ylim = c(0, 20), add = TRUE, col = "red")
+
+# run nonlinear regression fit
+stat.fit <- nls(y ~ stat.fun(a, x), start = list(a = 5))
+dyna.fit <- nls(y ~ dyna.fun(a, b, x), start = list(a = 1, b = .04))
+dyna.fit.r <- nls(y ~ dyna.fun.r(a, x), start = list(a = 1))
+coef.stat <- coef(stat.fit)
+coef.dyna <-  coef(dyna.fit)
+coef.dyna.r <-  coef(dyna.fit.r)
+
+# confidence intervals of nls results
+dyna.r.ci <- confint2(dyna.fit.r) # produces negative value for a, doesn't make sense
+
+# save curves for ggplotting
+
+dyna.r.curve <- as.data.frame(curve(from = 1, to = 50, dyna.fun.r(a = 1.858, x)))
+dyna.r.ci.lo <- as.data.frame(curve(from = 1, to = 50, dyna.fun.r(a = 1.693381, x)))
+dyna.r.ci.hi <- as.data.frame(curve(from = 1, to = 50, dyna.fun.r(a = 2.043169, x)))
+stat.curve <- as.data.frame(curve(from = 1, to = 50, stat.fun(a = 1.858, x)))
+  
 
 #------------------------PLOT ZONE---------------------------------------------#
   
@@ -214,7 +267,8 @@ plot_ampVdist <- ggplot(waves_by_trial,
                         aes(x = distance, 
                             y = amplitude_male)) +
   geom_point() +
-  geom_smooth(method="lm") +
+  #geom_text(aes(label = trial_n, hjust= -0.25, vjust=0)) +
+  geom_smooth(method='lm',color = "black", size = .5) +
   xlim(0,50) +
   ylim(0,50) +
   xlab("distance (mm)") +
@@ -252,13 +306,17 @@ plot_velVdist <- ggplot(waves_by_trial,
   ylab("wave velocity (degrees/s)")
 
 ## Scatterplot of visual angle vs distance to female
-plot_visVdist <- ggplot(waves_by_trial, 
-                        aes(x = distance, 
+plot_visVdist <- ggplot(waves_by_trial,
+                        aes(x = distance,
                             y = visual_angle)) +
   geom_point() +
-  geom_smooth(method = "gam", formula = y ~ atan(1/x), se = TRUE) +
-  xlim(10,50) +
-  ylim(0,15) +
+  geom_line(data = dyna.r.curve, aes(x = x, y = y, color = "dynamic wave")) +
+  geom_line(data = dyna.r.ci.lo, aes(x = x, y = y, color = "dynamic wave"), size = .1) +
+  geom_line(data = dyna.r.ci.hi, aes(x = x, y = y, color = "dynamic wave"), size = .1) +
+  geom_line(data = stat.curve, aes(x = x, y = y, color = "static wave"), linetype = "dotted") +
+  coord_cartesian(ylim = c(0, 15), xlim =c(0,50)) +
+  theme(legend.position = c(.75, .9)) +
+  theme(legend.title=element_blank()) +
   xlab("distance (mm)") +
   ylab("visual angle (degrees)")
 
@@ -280,8 +338,8 @@ plot_vel_vaVdist <- ggplot(waves_by_trial,
 my.ggsave <-
   function(filename = default_name(plot),
            plot = plot,
-           height = 3,
-           width = 3,
+           height = 4,
+           width = 4,
            dpi = 300) {
     ggsave(
       filename = filename,
@@ -297,6 +355,8 @@ my.ggsave("figures/angle vs distance.jpg", plot_visVdist)
 my.ggsave("figures/amplitude vs background.jpg", plot_amp_background)
 my.ggsave("figures/angle vs background.jpg", plot_vis_background)
 my.ggsave("figures/distance vs background.jpg", plot_dist_background)
+
+my.ggsave("figures/angle vs distance.svg", plot_visVdist)
 
 #------------------------END MATTER--------------------------------------------#
 
