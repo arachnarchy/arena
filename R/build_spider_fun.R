@@ -1,20 +1,22 @@
-# This file contains helper functions for describing arm waves from raw coordinates and start/end
-# tables.
+# This file contains helper functions for describing arm waves from raw 
+# coordinates and start/end tables.
 
 norm_vec <- function(x) {
 # calculates length of a vector
   sqrt(sum(x ^ 2))
 } 
 
-rad2deg <- function(rad) {(rad * 180) / (pi)} # angle conversion radians to degrees
+rad2deg <- function(rad) {(rad * 180) / (pi)} # conversion radians to degrees
 
-deg2rad <- function(deg) {(deg * pi) / (180)} # angle conversion degrees to radians
+deg2rad <- function(deg) {(deg * pi) / (180)} # conversion degrees to radians
 
 split_endStart <- function(trial.data) {
-  # Replaces "end/start" in trial.data with "end", duplicate row at row+1, then replaces "end" with "start". 
-  # Controls for rows in which both left and right leg are "end/start"
+  # Replaces "end/start" in trial.data with "end", duplicate row at row+1, 
+  # then replaces "end" with "start". Controls for rows in which both left and 
+  # right leg are "end/start"
   
-  # first calculate number of rows in the final dataframe after duplicating end/start rows
+  # first calculate number of rows in the final dataframe after duplicating 
+  # end/start rows
   endrows <-
     nrow(trial.data) +
     length(grep("end/start", trial.data$left)) +
@@ -22,7 +24,7 @@ split_endStart <- function(trial.data) {
     sum(
       sapply(trial.data[2], function(x)
         trial.data[2] == "end/start" & trial.data[3] == "end/start")
-    ) #25 becomes 27, should be 33
+    )
   
   # tease apart "end/start" rows
   for (i in 1:endrows) {
@@ -48,7 +50,7 @@ split_endStart <- function(trial.data) {
       trial.data[i + 1, 3] <- "start"
     }
   }
- # rownames(trial.data) <- seq(length = nrow(trial.data))
+
   return(trial.data)
 }
 
@@ -57,8 +59,8 @@ split.sides <- function(trial.data) {
   lefts <- filter(trial.data, left != "0")
   lefts <- lefts[, c(1:2, 4:ncol(lefts))] # remove right column
   colnames(lefts)[2] <- "event"
-  lefts <-
-    unique(lefts) # removes duplicated rows introduced when other leg had an end/start frame
+  # removes duplicated rows introduced when other leg had an end/start frame:
+  lefts <- unique(lefts) 
   
   rights <- filter(trial.data, right != "0")
   rights <- rights[, c(1, 3:ncol(rights))] # remove right column
@@ -70,7 +72,8 @@ split.sides <- function(trial.data) {
 }
 
 wave_angle.abs <- function(coxa.start, claw.start, coxa.end, claw.end) {
-  # calculates change in "absolute" arm angle (angle between coxa-claw vector and horizontal plane) during a wave. 
+  # calculates change in "absolute" arm angle (angle between coxa-claw vector 
+  # and horizontal plane) during a wave. 
   # Takes xyz coordinates of two point pairs.
   
     horiPlane <- c(0, 0, 1) # orthogonal vector to horizontal plane
@@ -79,18 +82,20 @@ wave_angle.abs <- function(coxa.start, claw.start, coxa.end, claw.end) {
     
     angle.start <-
       rad2deg(asin(
-        norm_vec(horiPlane * vector.start) / norm_vec(vector.start) * norm_vec(horiPlane)
+        norm_vec(horiPlane * vector.start) / norm_vec(vector.start) * 
+          norm_vec(horiPlane)
       ))
     angle.end <-
       rad2deg(asin(
-        norm_vec(horiPlane * vector.end) / norm_vec(vector.end) * norm_vec(horiPlane)
+        norm_vec(horiPlane * vector.end) / norm_vec(vector.end) * 
+          norm_vec(horiPlane)
       ))
     
     amplitude <- angle.end - angle.start
     return(amplitude)
   }
 
-# functions to calculate visual angle moved from female perspective ---------------------------------------------------------------------------------
+# functions to calculate visual angle moved from female perspective ------------
 xyz.matrix <- function(trial.data.row){
   # 
   X <- as.numeric(trial.data.row[, seq(4, length(trial.data.row)-1, 3)])
@@ -103,11 +108,8 @@ xyz.matrix <- function(trial.data.row){
 }   #1: Makes a 12x3 matrix from one row of trial.data
 
 male_azimuth <- function(points){
-  # this function calculates male "camera" angle vs world x-axis. Takes data from one frame as a [12,3] xyz array
-  
-  # pt.1 <- c(points[1,1], points[1,2], 1)
-  # pt.2 <- c(points[2,1], points[2,2], 1)
-  # male <- pt.1 - pt.2
+  # This function calculates male "camera" angle vs world x-axis. 
+  # Takes data from one frame as a [12,3] xyz array
   
   male <- c(points[1,1], points[1,2], 1)
   vertPlane <- c(0, 1, 0) # orthogonal vector to horizontal plane
@@ -140,10 +142,13 @@ male_azimuth <- function(points){
   }
   
   return(camera)
-}    #2: calculates male "camera" angle vs world x-axis. Takes data from one frame as a [12,3] xyz array
+}    
+#2: Calculates male "camera" angle vs world x-axis. 
+#   Takes data from one frame as a [12,3] xyz array
 
 zrotate <- function(point, angle) {
-  # this function rotates an xyz point (or array of xyz points) counter-clockwise around the z-axis. 
+  # this function rotates an xyz point (or array of xyz points) counter-
+  # clockwise around the z-axis. 
   rotator <- matrix(
     data = c(cos(angle), -sin(angle), 0,
              sin(angle), cos(angle), 0,
@@ -154,27 +159,36 @@ zrotate <- function(point, angle) {
   
   point_rot <- point %*% rotator
   return(point_rot)
-}    #3: rotates an xyz point (or array of xyz points) counter-clockwise around the z-axis.
+}    
+#3: rotates an xyz point (or array of xyz points) counter-clockwise around the z-axis.
 
 create_rotated_view <-  function(trial.data){
-rotated.frames <- matrix(nrow = nrow(trial.data), ncol = 36) # set up empty array to hold rotated rows
+  # set up empty array to hold rotated rows:
+rotated.frames <- matrix(nrow = nrow(trial.data), ncol = 36) 
+
 
   for(i in 1:nrow(trial.data)){
     row.as.matrix <- xyz.matrix(trial.data[i,])
     rotation_angle <- male_azimuth(row.as.matrix)
     rotated.points <- zrotate(row.as.matrix, rotation_angle)
-    rotated.frames[i,] <-  as.vector(t(rotated.points)) #turns 12x3 matrix of rotated points back into a row vector
+    #turns 12x3 matrix of rotated points back into a row vector:
+    rotated.frames[i,] <-  as.vector(t(rotated.points)) 
   }
 
-colnames(rotated.frames)<- paste(rep("pt", 36), rep(1:12, each = 3), rep(c("_rX", "_rY", "_rZ"), 12),sep="")
+colnames(rotated.frames)<- paste(rep("pt", 36), rep(1:12, each = 3),
+                                 rep(c("_rX", "_rY", "_rZ"), 12),sep="")
+
 trial.data <- cbind(trial.data, rotated.frames)
-trial.data <- trial.data[,c(1,2,3,40,4:39,41:76)] # gets the fps column to the front
+trial.data <- trial.data[,c(1,2,3,40,4:39,41:76)] # gets the fps column to front
 return(trial.data)
-} #4: takes all rows from trial.data and adds female view coordinates.
+} 
+#4: takes all rows from trial.data and adds female view coordinates.
 
 visual_angle <- function(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r){
-  # script takes xyz coords of each point (3 length vector). Then does a projection where, in this rotated orientation,
-  # e.g. pt3_rX AKA coxa.start.r[1] becomes the depth coordinate for scaling, pt3_rY becomes x, and pt3_rZ becomes y.
+  # script takes xyz coords of each point (3 length vector). Then does a 
+  # projection where, in this rotated orientation, e.g. 
+  # pt3_rX AKA coxa.start.r[1] becomes the depth coordinate for scaling, 
+  # pt3_rY becomes x, and pt3_rZ becomes y.
   
   # with female position as (0,0,0):
   coxa.start.proj_x <- coxa.start.r[2] / coxa.start.r[1]
@@ -192,13 +206,14 @@ visual_angle <- function(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r){
   
   clawmove <- claw.end.proj - claw.start.proj # 2D vector of claw movement
   
-  # the "canvas" is 1 unit (mm) away from the eye, thus angle moved is just inverse tangent of distance moved:
+  # the "canvas" is 1 unit (mm) away from the eye, thus angle moved is just 
+  # inverse tangent of distance moved:
   angle_moved <- rad2deg(atan(norm_vec(clawmove)))
   
 return(angle_moved)
 } #5: calculates visual angle moved by left and right leg
 
-# reshape left/right start/end data into a frame that has one wave per row --------
+# reshape left/right start/end data into a frame that has one wave per row -----
 
 build.waves <- function(lefts, rights) {
   n.waves.left <- nrow(lefts) / 2
@@ -219,7 +234,8 @@ build.waves <- function(lefts, rights) {
     stringsAsFactors = FALSE
   )
   
-  # populate "waves" dataframe with data from left leg waves, calculate amplitude and velocity in relation to male
+  # populate "waves" dataframe with data from left leg waves, calculate 
+  # amplitude and velocity in relation to male
   i <- 1
   j <- 1
   while (i <= n.waves.left) {
@@ -242,7 +258,7 @@ build.waves <- function(lefts, rights) {
         sqrt(((lefts$pt11_X[j] - lefts$pt1_X[j])^2) + 
              ((lefts$pt11_Y[j] - lefts$pt1_Y[j])^2))
       
-      duration <- (lefts$frame[j + 1] - lefts$frame[j]) / lefts$fps[j] #duration in seconds
+      duration <- (lefts$frame[j + 1] - lefts$frame[j]) / lefts$fps[j] # seconds
       amplitude <- wave_angle.abs(coxa.start, claw.start, coxa.end, claw.end)
       velocity <- sqrt((amplitude/duration)^2)
       
@@ -258,7 +274,11 @@ build.waves <- function(lefts, rights) {
       eye.start <- lefts$pt11_rX[j]
       eye.end <- lefts$pt11_rX[j+1]
       
-      angle.female <- visual_angle(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r)
+      angle.female <- visual_angle(coxa.start.r,
+                                   claw.start.r,
+                                   coxa.end.r,
+                                   claw.end.r)
+      
       velocity.female <- sqrt((angle.female/duration)^2)
       
       waves$distance[i] <- distance
@@ -291,8 +311,10 @@ build.waves <- function(lefts, rights) {
       claw.end <-
         c(rights$pt10_X[j + 1], rights$pt10_Y[j + 1], rights$pt10_Z[j + 1])
       
-      distance <- sqrt(((rights$pt11_X[j] - rights$pt1_X[j])^2) + ((rights$pt11_Y[j] - rights$pt1_Y[j])^2))
-      duration <- (rights$frame[j + 1] - rights$frame[j]) / rights$fps[j] #duration in seconds
+      distance <- sqrt(((rights$pt11_X[j] - rights$pt1_X[j])^2) + 
+                         ((rights$pt11_Y[j] - rights$pt1_Y[j])^2))
+      
+      duration <- (rights$frame[j + 1] - rights$frame[j]) / rights$fps[j]
       amplitude <- wave_angle.abs(coxa.start, claw.start, coxa.end, claw.end)
       velocity <- sqrt((amplitude/duration)^2)
       
@@ -308,7 +330,11 @@ build.waves <- function(lefts, rights) {
       eye.start <- rights$pt11_rX[j]
       eye.end <- rights$pt11_rX[j+1]
       
-      angle.female <- visual_angle(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r)
+      angle.female <- visual_angle(coxa.start.r,
+                                   claw.start.r,
+                                   coxa.end.r,
+                                   claw.end.r)
+      
       velocity.female <- sqrt((angle.female/duration)^2)
       
       waves$distance[i] <- distance
@@ -330,7 +356,8 @@ build.waves <- function(lefts, rights) {
 }
 
 plot.arena <- function(points) {
-  # rotatable 3D plot of one frame. Requires 12 points as 12x3 matrix as generated by the "xyz.matrix" function above.
+  # rotatable 3D plot of one frame. Requires 12 points as 12x3 matrix as 
+  # generated by the "xyz.matrix" function above.
   
   # set up arena circle ----
   n <- 300 
@@ -348,6 +375,8 @@ plot.arena <- function(points) {
     ylim = c(-50, 50),
     zlim = c(0, 100)
   ) # draw 12 points
-  lines3d(50 * circle_x, 50 * circle_y, circle_z) # draw 50mm circle to represent arena
+  
+  # draw 50mm circle to represent arena:
+  lines3d(50 * circle_x, 50 * circle_y, circle_z) 
 }
 

@@ -152,9 +152,6 @@ lmer6_ord <- lmer(velocity_va ~ treat_n + (1|id), data = waves_by_trial)
 
 lmer7_ord <- lmer(amplitude_male ~ distance + (1|id), data = waves_by_trial)
 
-# test <- aov(distance ~ treat_n, data = waves_by_trial)
-# summary(test)
-
 smry_lmer1_ord <- summary(lmer1_ord)
 smry_lmer2_ord <- summary(lmer2_ord)
 smry_lmer3_ord <- summary(lmer3_ord)
@@ -167,7 +164,7 @@ smry_lmer7_ord <- summary(lmer7_ord)
 
 # anova(lmer2_cat, lmer2_ord) # compare AIC for both models >>> ordinal better
 
-## fit proper model to visual angle vs distance. It's not linear but geometric
+## Model fit to visual angle vs distance --------------------------------------#
 
 stat.fun <- function(a, x){rad2deg(atan(a/x))} # static model
 dyna.fun <- function(a, b, x){rad2deg(atan((a + (b * x))/x))} # dynamic model
@@ -180,10 +177,24 @@ y <- waves_by_trial$visual_angle
 plot(x, y, xlim = c(0, 50), ylim = c(0, 20))
 # curve(stat.fun(2, x), add = TRUE)
 # curve(dyna.fun(0.5, 0.01, x), add = TRUE)
-curve(rad2deg(atan((1.868 + .02 * x)/ x)), xlim = c(0, 50), ylim = c(0, 20), add = TRUE)
-curve(rad2deg(atan((1.693381 + .02 * x)/ x)), xlim = c(0, 50), ylim = c(0, 20), add = TRUE)
-curve(rad2deg(atan((2.043169 + .02 * x)/ x)), xlim = c(0, 50), ylim = c(0, 20), add = TRUE)
-#curve(rad2deg(atan((1.868 + 0 * x)/ x)), xlim = c(0, 50), ylim = c(0, 20), add = TRUE, col = "red")
+curve(
+  rad2deg(atan((1.868 + .02 * x) / x)),
+  xlim = c(0, 50),
+  ylim = c(0, 20),
+  add = TRUE
+)
+curve(
+  rad2deg(atan((1.693381 + .02 * x) / x)),
+  xlim = c(0, 50),
+  ylim = c(0, 20),
+  add = TRUE
+)
+curve(
+  rad2deg(atan((2.043169 + .02 * x) / x)),
+  xlim = c(0, 50),
+  ylim = c(0, 20),
+  add = TRUE
+)
 
 # run nonlinear regression fit
 stat.fit <- nls(y ~ stat.fun(a, x), start = list(a = 5))
@@ -194,10 +205,9 @@ coef.dyna <-  coef(dyna.fit)
 coef.dyna.r <-  coef(dyna.fit.r)
 
 # confidence intervals of nls results
-dyna.r.ci <- confint2(dyna.fit.r) # produces negative value for a, doesn't make sense
+dyna.r.ci <- confint2(dyna.fit.r) # produces negative value for a
 
 # save curves for ggplotting
-
 dyna.r.curve <- as.data.frame(curve(from = 1, to = 50, dyna.fun.r(a = 1.858, x)))
 dyna.r.ci.lo <- as.data.frame(curve(from = 1, to = 50, dyna.fun.r(a = 1.693381, x)))
 dyna.r.ci.hi <- as.data.frame(curve(from = 1, to = 50, dyna.fun.r(a = 2.043169, x)))
@@ -311,9 +321,15 @@ plot_visVdist <- ggplot(waves_by_trial,
                             y = visual_angle)) +
   geom_point() +
   geom_line(data = dyna.r.curve, aes(x = x, y = y, color = "dynamic wave")) +
-  geom_line(data = dyna.r.ci.lo, aes(x = x, y = y, color = "dynamic wave"), size = .1) +
-  geom_line(data = dyna.r.ci.hi, aes(x = x, y = y, color = "dynamic wave"), size = .1) +
-  geom_line(data = stat.curve, aes(x = x, y = y, color = "static wave"), linetype = "dotted") +
+  geom_line(data = dyna.r.ci.lo,
+            aes(x = x, y = y, color = "dynamic wave"),
+            size = .1) +
+  geom_line(data = dyna.r.ci.hi,
+            aes(x = x, y = y, color = "dynamic wave"),
+            size = .1) +
+  geom_line(data = stat.curve,
+            aes(x = x, y = y, color = "static wave"),
+            linetype = "dotted") +
   coord_cartesian(ylim = c(0, 15), xlim =c(0,50)) +
   theme(legend.position = c(.75, .9)) +
   theme(legend.title=element_blank()) +
