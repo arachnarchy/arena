@@ -95,7 +95,7 @@ trial.data <- create_rotated_view(trial.data)
 ## deal with "end/start" values by duplicating those rows
 trial.data <- split_endStart(trial.data)
 
-## split waves into separate data frames for left and right for ease of use
+## split waves into separate data frames for left and right 
 waves.sides <- split.sides(trial.data)
 lefts <- data.frame(waves.sides[1])
 rights <- data.frame(waves.sides[2])
@@ -135,7 +135,7 @@ if(any(trial.CI[, 1:36] > 1)) {
     trial.curr,
     paste0(which(trial.CI[, 1:36] > 1), collapse = ", ")
   ))
-} # CHECK right now returns cell indices instead of frames that fit condition
+}
 
 ## calculate frame with one row per wave----------------------------------------
 waves <- build.waves(lefts, rights)

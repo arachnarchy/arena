@@ -95,7 +95,9 @@ wave_angle.abs <- function(coxa.start, claw.start, coxa.end, claw.end) {
     return(amplitude)
   }
 
-# functions to calculate visual angle moved from female perspective ------------
+## Functions to calculate visual angle moved from female perspective -----------
+
+#1: Makes a 12x3 matrix from one row of trial.data
 xyz.matrix <- function(trial.data.row){
   # 
   X <- as.numeric(trial.data.row[, seq(4, length(trial.data.row)-1, 3)])
@@ -105,8 +107,10 @@ xyz.matrix <- function(trial.data.row){
   points <- matrix(c(X,Y,Z), nrow = 12, ncol = 3)
   colnames(points) <- c("X", "Y", "Z")
   return(points)
-}   #1: Makes a 12x3 matrix from one row of trial.data
+}   
 
+#2: Calculates male "camera" angle vs world x-axis. Takes data from one frame as
+#   a [12,3] xyz array
 male_azimuth <- function(points){
   # This function calculates male "camera" angle vs world x-axis. 
   # Takes data from one frame as a [12,3] xyz array
@@ -143,9 +147,8 @@ male_azimuth <- function(points){
   
   return(camera)
 }    
-#2: Calculates male "camera" angle vs world x-axis. 
-#   Takes data from one frame as a [12,3] xyz array
 
+#3: rotates one or more xyz points counter-clockwise around the z-axis.
 zrotate <- function(point, angle) {
   # this function rotates an xyz point (or array of xyz points) counter-
   # clockwise around the z-axis. 
@@ -160,8 +163,8 @@ zrotate <- function(point, angle) {
   point_rot <- point %*% rotator
   return(point_rot)
 }    
-#3: rotates an xyz point (or array of xyz points) counter-clockwise around the z-axis.
 
+#4: takes all rows from trial.data and adds female view coordinates.
 create_rotated_view <-  function(trial.data){
   # set up empty array to hold rotated rows:
 rotated.frames <- matrix(nrow = nrow(trial.data), ncol = 36) 
@@ -182,10 +185,10 @@ trial.data <- cbind(trial.data, rotated.frames)
 trial.data <- trial.data[,c(1,2,3,40,4:39,41:76)] # gets the fps column to front
 return(trial.data)
 } 
-#4: takes all rows from trial.data and adds female view coordinates.
 
+#5: calculates visual angle moved by left and right leg
 visual_angle <- function(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r){
-  # script takes xyz coords of each point (3 length vector). Then does a 
+  # function takes xyz coords of each point (3 length vector). Then does a 
   # projection where, in this rotated orientation, e.g. 
   # pt3_rX AKA coxa.start.r[1] becomes the depth coordinate for scaling, 
   # pt3_rY becomes x, and pt3_rZ becomes y.
@@ -211,10 +214,10 @@ visual_angle <- function(coxa.start.r, claw.start.r, coxa.end.r, claw.end.r){
   angle_moved <- rad2deg(atan(norm_vec(clawmove)))
   
 return(angle_moved)
-} #5: calculates visual angle moved by left and right leg
+} 
+
 
 # reshape left/right start/end data into a frame that has one wave per row -----
-
 build.waves <- function(lefts, rights) {
   n.waves.left <- nrow(lefts) / 2
   n.waves.right <- nrow(rights) / 2

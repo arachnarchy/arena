@@ -1,6 +1,7 @@
 ## Run statistics and plot long distance waving data. 
 ## Needs "waves.csv" file produced by "build_spider.r"
 
+##-----------------------LOAD PACKAGES------------------------------------------
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -10,8 +11,9 @@ library(lmerTest) # for Satterthwaite approximation to get p-values in lmer
 library(ggpubr) # for density and qq plots
 library(nlstools) # for CI on nonlinear fit
 
+theme_set(theme_classic()) # set new global look for plots
 
-#------------------------READ & WRANGLE DATA-----------------------------------#
+##-----------------------READ & WRANGLE DATA------------------------------------
 
 waves <- read.csv("waves.csv", header = TRUE)
 
@@ -87,6 +89,7 @@ updown_by_trial <-
   waves %>% 
   group_by(id, stroke) %>% 
   summarize(amplitude_male = mean(amplitude.male),
+            velocity_male = mean(velocity.male),
             trial_duration = max(time),
             n.waves        = n(),
             wave_rate      = (n.waves / trial_duration) * 1000)
@@ -97,12 +100,15 @@ updown_stats <- updown_by_trial %>%
     waves.n = n(),
     amplitude = mean(amplitude_male),
     amplitude.sd = sd(amplitude_male),
+    velocity = mean(velocity_male),
+    velocity.sd = sd(velocity_male),
     rate = mean(wave_rate),
     rate.sd = sd(wave_rate)
   )
 
 t.test(abs(wave_rate) ~ stroke, data = updown_by_trial, paired = TRUE)
 t.test(abs(amplitude_male) ~ stroke, data = updown_by_trial, paired = TRUE)
+t.test(abs(velocity_male) ~ stroke, data = updown_by_trial, paired = TRUE)
 
 ## add numeric re-coding of treatments (tested with many spacings, no diff)
 waves_by_trial <- waves_by_trial %>%
@@ -110,7 +116,8 @@ waves_by_trial <- waves_by_trial %>%
                           ifelse(treat == "0x", 1,
                                  ifelse(treat == "1x", 2, 3))))
 
-#------------------------SUMMARY STATS-----------------------------------------#
+
+##-----------------------STATS-------------------------------------------------
 
 ## Summary table
 summary_by_background <- waves_by_trial %>% group_by(treat) %>% summarize(
@@ -128,44 +135,21 @@ summary_by_background <- waves_by_trial %>% group_by(treat) %>% summarize(
   sd.n                = sd(n.waves)
 )
 
-## Treatment effect comparison ------------------------------------------------#
+
+## Treatment effect comparison -------------------------------------------------
 
 ## Effects with treatment as categorical
-# lmer1_cat <- lmer(amplitude_male ~ treat + (1|id), data = waves_by_trial)
-# lmer2_cat <- lmer(visual_angle ~ treat + (1|id), data = waves_by_trial)
-# lmer3_cat <- lmer(distance ~ treat + (1|id), data = waves_by_trial)
-# lmer4_cat <- lmer(distance_1st ~ treat + (1|id), data = waves_by_trial)
-# 
-# smry_lmer1_cat <- summary(lmer1_cat)
-# smry_lmer2_cat <- summary(lmer2_cat)
-# smry_lmer3_cat <- summary(lmer3_cat)
-# smry_lmer4_cat <- summary(lmer4_cat)
+lme_amp_treat <- lme(amplitude.male~treat, random=~1|id, data=waves)
+lme_va_treat <- lme(visual.angle~treat, random=~1|id, data=waves)
+lme_dist_treat <- lme(distance~treat, random=~1|id, data=waves)
+lme_vm_treat <- lme(velocity.male~treat, random=~1|id, data=waves)
 
-## Effects with treatment as ordinal (continuous)
-lmer1_ord <- lmer(amplitude_male ~ treat_n + (1|id), data = waves_by_trial)
-lmer2_ord <- lmer(visual_angle ~ treat_n + (1|id), data = waves_by_trial)
-lmer3_ord <- lmer(distance ~ treat_n + (1|id), data = waves_by_trial)
-lmer4_ord <- lmer(distance_1st ~ treat_n + (1|id), data = waves_by_trial)
-
-lmer5_ord <- lmer(velocity_male ~ treat_n + (1|id), data = waves_by_trial)
-lmer6_ord <- lmer(velocity_va ~ treat_n + (1|id), data = waves_by_trial)
-
-lmer7_ord <- lmer(amplitude_male ~ distance + (1|id), data = waves_by_trial)
-
-smry_lmer1_ord <- summary(lmer1_ord)
-smry_lmer2_ord <- summary(lmer2_ord)
-smry_lmer3_ord <- summary(lmer3_ord)
-smry_lmer4_ord <- summary(lmer4_ord)
-
-smry_lmer5_ord <- summary(lmer5_ord)
-smry_lmer6_ord <- summary(lmer6_ord)
-
-smry_lmer7_ord <- summary(lmer7_ord)
-
-# anova(lmer2_cat, lmer2_ord) # compare AIC for both models >>> ordinal better
+anova_lme_amp_treat <- anova(lme_amp_treat)
+anova_lme_va_treat <- anova(lme_va_treat)
+anova_lme_dist_treat <- anova(lme_dist_treat)
+anova_lme_vm_treat <- anova(lme_vm_treat)
 
 ## Model fit to visual angle vs distance --------------------------------------#
-
 stat.fun <- function(a, x){rad2deg(atan(a/x))} # static model
 dyna.fun <- function(a, b, x){rad2deg(atan((a + (b * x))/x))} # dynamic model
 dyna.fun.r <- function(a, x){rad2deg(atan((a + (0.02 * x))/x))} 
@@ -214,9 +198,9 @@ dyna.r.ci.hi <- as.data.frame(curve(from = 1, to = 50, dyna.fun.r(a = 2.043169, 
 stat.curve <- as.data.frame(curve(from = 1, to = 50, stat.fun(a = 1.858, x)))
   
 
-#------------------------PLOT ZONE---------------------------------------------#
-  
-theme_set(theme_classic()) # set new global look for plots
+
+#------------------------PLOT ZONE----------------------------------------------
+
 
 ## Simple scatterplot of male amplitude vs velocity
 plot_ampVvel <- ggplot(waves_by_trial, 
@@ -234,6 +218,52 @@ plot_visVvel <- ggplot(waves_by_trial,
   xlab("velocity (degrees/s)") +
   ylab("visual angle (degrees)")
 
+## Violin wave amplitude by background categories
+violin_amp_background <- ggplot(waves, 
+                                aes(x = treat, 
+                                    y = abs(amplitude.male))) +
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  xlab("background") +
+  ylab("wave amplitude (degrees)")
+
+effects_amp_background <- plot(Effect("treat",lme_amp_treat),
+                               main="",
+                               axes=list(
+                                 x=list(treat=list(lab="background")),
+                                 y=list(lab="wave amplitude (degrees)"))
+)
+
+## Violin visual angle by background categories
+violin_vis_background <- ggplot(waves, 
+                                aes(x = treat, 
+                                    y = visual.angle)) +
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  xlab("background") +
+  ylab("perceived movement (degrees)")
+
+effects_vis_background <- plot(Effect("treat",lme_va_treat),
+                               main="",
+                               axes=list(
+                                 x=list(treat=list(lab="background")),
+                                 y=list(lab="perceived movement (degrees)"))
+)
+
+## Violin distance by background categories
+violin_dist_background <- ggplot(waves, 
+                                 aes(x = treat, 
+                                     y = distance)) +
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  ylim(0, 50) +
+  xlab("background") +
+  ylab("distance (mm)")
+
+effects_dist_background <- plot(Effect("treat",lme_dist_treat),
+                                main="",
+                                axes=list(
+                                  x=list(treat=list(lab="background")),
+                                  y=list(lab="distance (mm)"))
+)
+
 ## Boxplot wave amplitude by background categories
 plot_amp_background <- ggplot(waves_by_trial, 
                               aes(x = treat, 
@@ -250,7 +280,7 @@ plot_vis_background <- ggplot(waves_by_trial,
   geom_point(size = 1) +
   geom_boxplot(alpha = 0) +
   xlab("background") +
-  ylab("visual angle (degrees)")
+  ylab("perceived movement (degrees)")
 
 ## Boxplot distance by background categories
 plot_dist_background <- ggplot(waves_by_trial, 
@@ -279,6 +309,9 @@ plot_ampVdist <- ggplot(waves_by_trial,
   geom_point() +
   #geom_text(aes(label = trial_n, hjust= -0.25, vjust=0)) +
   geom_smooth(method='lm',color = "black", size = .5) +
+  stat_poly_eq(formula = waves_by_trial$distance ~ waves_by_trial$amplitude_male,
+               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+               parse = TRUE) +
   xlim(0,50) +
   ylim(0,50) +
   xlab("distance (mm)") +
@@ -334,7 +367,18 @@ plot_visVdist <- ggplot(waves_by_trial,
   theme(legend.position = c(.75, .9)) +
   theme(legend.title=element_blank()) +
   xlab("distance (mm)") +
-  ylab("visual angle (degrees)")
+  ylab("perceived movement (degrees)")
+
+## Scatterplot of visual angle vs distance to female
+plot_visVdist_nofit <- ggplot(waves_by_trial,
+                        aes(x = distance,
+                            y = visual_angle)) +
+  geom_point() +
+  coord_cartesian(ylim = c(0, 15), xlim =c(0,50)) +
+  theme(legend.position = c(.75, .9)) +
+  theme(legend.title=element_blank()) +
+  xlab("distance (mm)") +
+  ylab("perceived movement (degrees)")
 
 ## Scatterplot of velocity_va vs distance to female
 plot_vel_vaVdist <- ggplot(waves_by_trial, 
@@ -366,11 +410,13 @@ my.ggsave <-
     )
   }
 
-my.ggsave("figures/amplitude vs distance.jpg", plot_ampVdist)
-my.ggsave("figures/angle vs distance.jpg", plot_visVdist)
-my.ggsave("figures/amplitude vs background.jpg", plot_amp_background)
-my.ggsave("figures/angle vs background.jpg", plot_vis_background)
-my.ggsave("figures/distance vs background.jpg", plot_dist_background)
+my.ggsave("figures/amplitude vs distance.svg", plot_ampVdist)
+my.ggsave("figures/angle vs distance.svg", plot_visVdist_nofit)
+my.ggsave("figures/angle vs distance.svg", plot_visVdist)
+my.ggsave("figures/amplitude vs background.svg", plot_amp_background)
+my.ggsave("figures/distance vs background.svg", plot_dist_background)
+my.ggsave("figures/angle vs background.svg", plot_vis_background)
+
 
 my.ggsave("figures/angle vs distance.svg", plot_visVdist)
 
