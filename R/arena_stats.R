@@ -17,7 +17,6 @@ theme_set(theme_classic()) # set new global look for plots
 
 waves <- read.csv("waves.csv", header = TRUE)
 
-
 # add trial ID
 waves$trial_ID <- paste0(waves$id, " ", waves$treat)
 waves_by_trial$trial_n <- seq(1:65)
@@ -139,7 +138,7 @@ summary_by_background <- waves_by_trial %>% group_by(treat) %>% summarize(
 ## Treatment effect comparison -------------------------------------------------
 
 ## Effects with treatment as categorical
-lme_amp_treat <- lme(amplitude.male~treat, random=~1|id, data=waves)
+lme_amp_treat <- lme(abs(amplitude.male)~treat, random=~1|id, data=waves)
 lme_va_treat <- lme(visual.angle~treat, random=~1|id, data=waves)
 lme_dist_treat <- lme(distance~treat, random=~1|id, data=waves)
 lme_vm_treat <- lme(velocity.male~treat, random=~1|id, data=waves)
@@ -149,6 +148,11 @@ anova_lme_va_treat <- anova(lme_va_treat)
 anova_lme_dist_treat <- anova(lme_dist_treat)
 anova_lme_vm_treat <- anova(lme_vm_treat)
 
+effects_lme_amp_treat <- as.data.frame(Effect("treat",lme_amp_treat))
+effects_lme_va_treat <- as.data.frame(Effect("treat",lme_va_treat))
+effects_lme_dist_treat <- as.data.frame(Effect("treat",lme_dist_treat))
+effects_lme_vm_treat <- as.data.frame(Effect("treat",lme_vm_treat))
+
 ## Model fit to visual angle vs distance --------------------------------------#
 stat.fun <- function(a, x){rad2deg(atan(a/x))} # static model
 dyna.fun <- function(a, b, x){rad2deg(atan((a + (b * x))/x))} # dynamic model
@@ -156,29 +160,6 @@ dyna.fun.r <- function(a, x){rad2deg(atan((a + (0.02 * x))/x))}
 
 x <- waves_by_trial$distance
 y <- waves_by_trial$visual_angle
-
-# plot curve with guessed values until close
-plot(x, y, xlim = c(0, 50), ylim = c(0, 20))
-# curve(stat.fun(2, x), add = TRUE)
-# curve(dyna.fun(0.5, 0.01, x), add = TRUE)
-curve(
-  rad2deg(atan((1.868 + .02 * x) / x)),
-  xlim = c(0, 50),
-  ylim = c(0, 20),
-  add = TRUE
-)
-curve(
-  rad2deg(atan((1.693381 + .02 * x) / x)),
-  xlim = c(0, 50),
-  ylim = c(0, 20),
-  add = TRUE
-)
-curve(
-  rad2deg(atan((2.043169 + .02 * x) / x)),
-  xlim = c(0, 50),
-  ylim = c(0, 20),
-  add = TRUE
-)
 
 # run nonlinear regression fit
 stat.fit <- nls(y ~ stat.fun(a, x), start = list(a = 5))
@@ -197,10 +178,7 @@ dyna.r.ci.lo <- as.data.frame(curve(from = 1, to = 50, dyna.fun.r(a = 1.693381, 
 dyna.r.ci.hi <- as.data.frame(curve(from = 1, to = 50, dyna.fun.r(a = 2.043169, x)))
 stat.curve <- as.data.frame(curve(from = 1, to = 50, stat.fun(a = 1.858, x)))
   
-
-
 #------------------------PLOT ZONE----------------------------------------------
-
 
 ## Simple scatterplot of male amplitude vs velocity
 plot_ampVvel <- ggplot(waves_by_trial, 
@@ -218,89 +196,68 @@ plot_visVvel <- ggplot(waves_by_trial,
   xlab("velocity (degrees/s)") +
   ylab("visual angle (degrees)")
 
-## Violin wave amplitude by background categories
-violin_amp_background <- ggplot(waves, 
-                                aes(x = treat, 
-                                    y = abs(amplitude.male))) +
-  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
-  xlab("background") +
-  ylab("wave amplitude (degrees)")
+# wave amplitude by background categories
+plot_amp_background <-  ggplot() +
+                        #geom_point(data=waves, aes(x = treat, y = abs(amplitude.male)), position = "jitter") +
+                        geom_violin(data=waves, aes(x = treat, y = abs(amplitude.male))) +
+                        geom_errorbar(data=effects_lme_amp_treat, 
+                                      mapping=aes(x=treat, ymin=fit-se, ymax=fit+se), 
+                                      color='red', 
+                                      size = 2, 
+                                      width=0.3) +
+                        geom_point(data=effects_lme_amp_treat, 
+                                   aes(treat, fit), 
+                                   size= 4, 
+                                   color = 'red') +
+                        geom_path(data=effects_lme_amp_treat, 
+                                  aes(x=treat, y=fit), 
+                                  group = 1, 
+                                  size= 1, 
+                                  color = 'red') +
+                        xlab("background") +
+                        ylab("wave amplitude (degrees)")
 
-effects_amp_background <- plot(Effect("treat",lme_amp_treat),
-                               main="",
-                               axes=list(
-                                 x=list(treat=list(lab="background")),
-                                 y=list(lab="wave amplitude (degrees)"))
-)
+# distance by background categories
+plot_dist_background <- ggplot() +
+                        #geom_point(data=waves, aes(x = treat, y = distance), position = "jitter") +
+                        geom_violin(data=waves, aes(x = treat, y = distance)) + 
+                        geom_errorbar(data=effects_lme_dist_treat, 
+                                      mapping=aes(x=treat, ymin=fit-se, ymax=fit+se), 
+                                      color='red', 
+                                      size = 2, 
+                                      width=0.3) +
+                        geom_point(data=effects_lme_dist_treat, 
+                                   aes(treat, fit), 
+                                   size= 4, 
+                                   color = 'red') +
+                        geom_path(data=effects_lme_dist_treat, 
+                                  aes(x=treat, y=fit), 
+                                  group = 1, 
+                                  size= 1, 
+                                  color = 'red') +
+                        xlab("background") +
+                        ylab("distance (mm)")
 
-## Violin visual angle by background categories
-violin_vis_background <- ggplot(waves, 
-                                aes(x = treat, 
-                                    y = visual.angle)) +
-  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
-  xlab("background") +
-  ylab("perceived movement (degrees)")
-
-effects_vis_background <- plot(Effect("treat",lme_va_treat),
-                               main="",
-                               axes=list(
-                                 x=list(treat=list(lab="background")),
-                                 y=list(lab="perceived movement (degrees)"))
-)
-
-## Violin distance by background categories
-violin_dist_background <- ggplot(waves, 
-                                 aes(x = treat, 
-                                     y = distance)) +
-  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
-  ylim(0, 50) +
-  xlab("background") +
-  ylab("distance (mm)")
-
-effects_dist_background <- plot(Effect("treat",lme_dist_treat),
-                                main="",
-                                axes=list(
-                                  x=list(treat=list(lab="background")),
-                                  y=list(lab="distance (mm)"))
-)
-
-## Boxplot wave amplitude by background categories
-plot_amp_background <- ggplot(waves_by_trial, 
-                              aes(x = treat, 
-                                  y = amplitude_male)) +
-  geom_point(size = 1) +
-  geom_boxplot(alpha = 0) +
-  xlab("background") +
-  ylab("wave amplitude (degrees)")
-
-## Boxplot visual angle by background categories
-plot_vis_background <- ggplot(waves_by_trial, 
-                              aes(x = treat, 
-                                  y = visual_angle)) +
-  geom_point(size = 1) +
-  geom_boxplot(alpha = 0) +
-  xlab("background") +
-  ylab("perceived movement (degrees)")
-
-## Boxplot distance by background categories
-plot_dist_background <- ggplot(waves_by_trial, 
-                               aes(x = treat, 
-                                   y = distance)) +
-  geom_point(size = 1) +
-  geom_boxplot(alpha = 0) +
-  ylim(0, 50) +
-  xlab("background") +
-  ylab("distance (mm)")
-
-## Boxplot distance at 1st wave by background categories
-plot_dist1_background <- ggplot(waves_by_trial, 
-                                aes(x = treat, 
-                                    y = distance_1st)) +
-  geom_point(size = 1) +
-  geom_boxplot(alpha = 0) +
-  ylim(0, 50) +
-  xlab("background") +
-  ylab("distance (mm)")
+# visual angle by background categories
+plot_vis_background <-  ggplot() +
+                        #geom_point(data=waves, aes(x = treat, y = visual.angle), position = "jitter") +
+                        geom_violin(data=waves, aes(x = treat, y = visual.angle)) +
+                        geom_errorbar(data=effects_lme_va_treat, 
+                                      mapping=aes(x=treat, ymin=fit-se, ymax=fit+se), 
+                                      color='red', 
+                                      size = 2, 
+                                      width=0.3) +
+                        geom_point(data=effects_lme_va_treat, 
+                                   aes(treat, fit), 
+                                   size= 4, 
+                                   color = 'red') +
+                        geom_path(data=effects_lme_va_treat, 
+                                  aes(x=treat, y=fit), 
+                                  group = 1, 
+                                  size= 1, 
+                                  color = 'red') +
+                        xlab("background") +
+                        ylab("perceived movement (degrees)")
 
 ## Scatterplot of amplitude_male vs vs distance to female
 plot_ampVdist <- ggplot(waves_by_trial, 
@@ -416,6 +373,10 @@ my.ggsave("figures/angle vs distance.svg", plot_visVdist)
 my.ggsave("figures/amplitude vs background.svg", plot_amp_background)
 my.ggsave("figures/distance vs background.svg", plot_dist_background)
 my.ggsave("figures/angle vs background.svg", plot_vis_background)
+
+my.ggsave("figures/amplitude vs background.png", plot_amp_background)
+my.ggsave("figures/distance vs background.png", plot_dist_background)
+my.ggsave("figures/angle vs background.png", plot_vis_background)
 
 
 my.ggsave("figures/angle vs distance.svg", plot_visVdist)
